@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal Fixed</title>
+    <title>Coffee Journal Perfect</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -20,7 +20,9 @@
             
             --glass-border: 1px solid rgba(255, 255, 255, 0.15);
             --glass-bg: rgba(30, 30, 30, 0.55);
-            --glass-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset;
+            --glass-shadow: 
+                0 25px 50px rgba(0,0,0,0.7), 
+                0 0 0 1px rgba(255,255,255,0.08) inset;
         }
 
         body {
@@ -30,7 +32,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
@@ -65,7 +67,6 @@
         }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        /* 伪元素占位，实现首尾居中 */
         .card-scroller::before,
         .card-scroller::after {
             content: '';
@@ -114,21 +115,24 @@
         .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
         
         .overlay-gradient {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0.85) 100%);
-            pointer-events: none;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 35%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.9) 100%);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
+            z-index: 1; pointer-events: none;
         }
 
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%;
             pointer-events: none; z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; 
-            padding-bottom: 45px; align-items: center; text-align: center;
+            padding-bottom: 50px; align-items: center; text-align: center;
         }
         .card-content h2 { 
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
             line-height: 1.1; letter-spacing: -0.5px;
-            text-shadow: 0 2px 15px rgba(0,0,0,0.6);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         .card-content p { 
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
@@ -146,7 +150,7 @@
         .upload-btn:hover { opacity: 0.8; }
         .upload-btn svg { stroke: white; width: 24px; height: 24px; stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));}
 
-        /* --- 背面 --- */
+        /* --- 背面 (参数面板) --- */
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
@@ -154,30 +158,67 @@
             -webkit-backdrop-filter: blur(60px) saturate(180%);
             border: var(--glass-border);
             box-shadow: var(--glass-shadow);
-            padding: 70px 35px 40px 35px; 
+            padding: 50px 30px; 
             display: flex; flex-direction: column; color: white;
         }
-        .card-back h3 {
-            text-align: center; font-size: 13px; letter-spacing: 2px; font-weight: 600;
-            text-transform: uppercase; margin: 0 0 30px 0; color: rgba(255,255,255,0.5);
+
+        .title-input-group {
+            margin-bottom: 40px; text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+        }
+        .title-input {
+            width: 100%; background: transparent; border: none;
+            font-size: 24px; font-weight: 700; color: white; text-align: center;
+            outline: none; font-family: inherit;
+        }
+        .title-input::placeholder { color: rgba(255,255,255,0.3); }
+
+        /* --- 参数列表布局 (严格对齐修正版) --- */
+        .data-list {
+            display: flex; flex-direction: column; gap: 0; width: 100%;
         }
 
-        .form-group { margin-bottom: 24px; position: relative; }
-        .form-group label { 
-            display: block; font-size: 11px; text-transform: uppercase; 
-            margin-bottom: 8px; color: rgba(255,255,255,0.4); font-weight: 600; letter-spacing: 1px;
+        .data-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 18px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            height: 24px;
         }
-        .form-group input, .form-group textarea {
-            width: 100%; background: rgba(0, 0, 0, 0.2); 
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 14px; border-radius: 14px; color: #fff; outline: none; box-sizing: border-box; 
-            font-size: 16px; font-family: inherit; transition: all 0.3s;
+        .data-row:last-child { border-bottom: none; }
+
+        .data-label {
+            font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px;
         }
-        .form-group input:focus, .form-group textarea:focus { 
-            background: rgba(0, 0, 0, 0.4); border-color: rgba(255, 255, 255, 0.25);
+
+        /* 关键修复：数值区域容器化 */
+        .data-value-group {
+            display: flex; 
+            align-items: center; 
+            justify-content: flex-end; /* 内容靠右 */
+            width: 140px; /* 固定宽度，确保上下对齐的基准线一致 */
         }
-        .form-group textarea { resize: none; height: 100px; line-height: 1.5; }
+
+        .data-input {
+            flex: 1; /* 占满剩余空间，把单位挤到最右边 */
+            background: transparent; border: none;
+            text-align: right; 
+            color: white; font-size: 20px; font-weight: 600;
+            outline: none; 
+            font-family: "SF Pro Display", -apple-system, sans-serif;
+            font-variant-numeric: tabular-nums; /* 等宽数字 */
+            padding: 0; margin: 0; /* 移除默认边距 */
+        }
+        .data-input::placeholder { color: rgba(255,255,255,0.2); }
         
+        .data-unit {
+            font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
+            width: 24px; /* 固定单位区域宽度 */
+            text-align: left; /* 单位文字左对齐 */
+            padding-left: 6px; /* 数值和单位的间距 */
+            flex-shrink: 0; /* 防止单位被挤压 */
+        }
+
         .action-row { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
         .btn-text { 
             background: rgba(255,255,255,0.08); border: none; color: white; 
@@ -199,7 +240,6 @@
             font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; 
         }
 
-        /* 展开的菜单 */
         .add-menu {
             display: none; flex-direction: column; gap: 12px; width: 60%;
             animation: fadeIn 0.3s ease;
@@ -242,8 +282,8 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Fixed';
-    const DB_VERSION = 2; // 升级版本号以清除旧数据冲突
+    const DB_NAME = 'CoffeeJournalDB_Pro_V4'; // Version update
+    const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
     let imageCache = new Map(); 
@@ -255,7 +295,6 @@
         setTimeout(() => t.style.opacity = '0', 1500);
     }
 
-    // --- 数据库 ---
     function initDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -280,7 +319,6 @@
         return new Promise((resolve) => {
             if (!db) return resolve([]);
             const tx = db.transaction(STORE_NAME, 'readonly');
-            // 修复点：添加 const
             const store = tx.objectStore(STORE_NAME);
             store.getAll().onsuccess = (e) => resolve(e.target.result);
         });
@@ -304,8 +342,14 @@
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
             const newCoffee = {
-                name: 'New Coffee', origin: '', notes: '', roast: roastType, 
-                imageData: null, created: Date.now()
+                name: 'New Coffee', 
+                powder: '18', 
+                liquid: '36', 
+                time: '25',   
+                grind: '',    
+                roast: roastType, 
+                imageData: null, 
+                created: Date.now()
             };
             store.add(newCoffee).onsuccess = (e) => {
                 newCoffee.id = e.target.result;
@@ -347,11 +391,9 @@
         });
     }
 
-    // --- 核心逻辑 ---
     const scroller = document.getElementById('scroller');
     const loading = document.getElementById('loading');
     
-    // 观察器主要负责：1.图片懒加载 2.标记激活状态(z-index)
     const cardObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const cardWrapper = entry.target;
@@ -386,7 +428,6 @@
             coffees.forEach(renderCard);
             renderAddButton();
             
-            // 初始动画计算
             requestAnimationFrame(animateCards);
 
         } catch (error) {
@@ -422,19 +463,41 @@
                 </div>
 
                 <div class="card-back" onclick="event.stopPropagation()">
-                    <h3>Details</h3>
-                    <div class="form-group">
-                        <label>Coffee Name</label>
-                        <input type="text" value="${coffee.name}" oninput="handleInput(${coffee.id}, 'name', this.value)">
+                    <div class="title-input-group">
+                        <input class="title-input" type="text" value="${coffee.name}" placeholder="Coffee Name" oninput="handleInput(${coffee.id}, 'name', this.value)">
                     </div>
-                    <div class="form-group">
-                        <label>Origin</label>
-                        <input type="text" value="${coffee.origin}" placeholder="e.g. Ethiopia" oninput="handleInput(${coffee.id}, 'origin', this.value)">
+
+                    <div class="data-list">
+                        <div class="data-row">
+                            <span class="data-label">粉量</span>
+                            <div class="data-value-group">
+                                <input class="data-input" type="number" value="${coffee.powder || ''}" oninput="handleInput(${coffee.id}, 'powder', this.value)">
+                                <span class="data-unit">g</span>
+                            </div>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">液重</span>
+                            <div class="data-value-group">
+                                <input class="data-input" type="number" value="${coffee.liquid || ''}" oninput="handleInput(${coffee.id}, 'liquid', this.value)">
+                                <span class="data-unit">g</span>
+                            </div>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">时间</span>
+                            <div class="data-value-group">
+                                <input class="data-input" type="number" value="${coffee.time || ''}" oninput="handleInput(${coffee.id}, 'time', this.value)">
+                                <span class="data-unit">s</span>
+                            </div>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">研磨度</span>
+                            <div class="data-value-group">
+                                <input class="data-input" type="text" value="${coffee.grind || ''}" oninput="handleInput(${coffee.id}, 'grind', this.value)">
+                                <span class="data-unit">m</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Notes</label>
-                        <textarea placeholder="Tasting notes..." oninput="handleInput(${coffee.id}, 'notes', this.value)">${coffee.notes}</textarea>
-                    </div>
+
                     <div class="action-row">
                         <button class="btn-text btn-delete" onclick="handleDelete(${coffee.id})">Delete</button>
                         <button class="btn-text" onclick="flipCard(this)">Done</button>
@@ -554,7 +617,7 @@
         const scrollerRect = scroller.getBoundingClientRect();
         const centerPoint = scrollerRect.left + scrollerRect.width / 2;
 
-        const enableEffect = cards.length > 4; // 3 content cards + 1 add card
+        const enableEffect = cards.length > 4; 
 
         cards.forEach(card => {
             if (!enableEffect) {
