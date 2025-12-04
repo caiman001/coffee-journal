@@ -7,11 +7,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal Zen</title>
+    <title>Coffee Journal Final</title>
     <style>
         :root {
             --bg-color: #000000;
-            /* 卡片尺寸 */
             --card-width: 360px;
             --card-height: 580px;
             
@@ -19,8 +18,8 @@
             --roast-medium: #8D6E63;
             --roast-dark: #3E2723;
             
-            --glass-border: 1px solid rgba(255, 255, 255, 0.15);
-            --glass-bg: rgba(30, 30, 30, 0.60);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.12);
+            --glass-bg: rgba(28, 28, 30, 0.65);
         }
 
         body {
@@ -40,19 +39,20 @@
 
         .app-container {
             width: 100%;
-            height: 100vh;
+            height: 100%;
             position: relative;
-            padding-top: env(safe-area-inset-top); 
-            box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            justify-content: center; 
+            justify-content: center;
+            /* 视觉修正：向上偏移，抵消状态栏带来的视觉下坠感，实现光学居中 */
+            padding-bottom: 20px; 
+            box-sizing: border-box;
         }
 
-        /* --- 核心滚动修复：伪元素占位法 --- */
+        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
-            gap: 24px; /* 更紧凑优雅的间距 */
+            gap: 24px;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
@@ -60,17 +60,16 @@
             width: 100%;
             height: 100%; 
             align-items: center;
-            /* 移除 padding，改用伪元素 */
             padding: 0; 
         }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        /* 使用伪元素撑开首尾空间，这是实现“居中对齐且能滑到头”最稳健的方法 */
+        /* 核心布局技巧：利用伪元素实现无极滑动且首尾居中 */
         .card-scroller::before,
         .card-scroller::after {
             content: '';
             display: block;
-            /* 计算方式：屏幕一半 - 卡片一半 = 剩余空间 */
+            /* 屏幕宽度的一半 - 卡片宽度的一半 = 剩余边距 */
             flex: 0 0 calc(50vw - var(--card-width) / 2);
             width: calc(50vw - var(--card-width) / 2);
         }
@@ -83,25 +82,18 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            /* 保持平铺，无缩放 */
             transform: scale(1);
             transition: z-index 0s;
         }
-
         .card-wrapper.active { z-index: 10; }
 
         /* --- 卡片本体 --- */
         .card {
-            position: relative;
-            width: 100%;
-            height: 100%;
+            position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
             transform-style: preserve-3d;
         }
-
-        .card-wrapper.flipped .card {
-            transform: rotateY(180deg);
-        }
+        .card-wrapper.flipped .card { transform: rotateY(180deg); }
 
         .card-front, .card-back {
             position: absolute; width: 100%; height: 100%;
@@ -112,74 +104,51 @@
         /* --- 正面 --- */
         .card-front {
             overflow: hidden; z-index: 2; transform: rotateY(0deg);
-            background: #1a1a1a;
+            background: #151515;
             border: var(--glass-border);
-            /* 更柔和的纯平阴影 */
             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
         }
 
-        .bg-image {
-            width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s;
-        }
+        .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
         
         .overlay-gradient {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
-            /* 优化渐变，让文字更易读 */
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.9) 100%);
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0.85) 100%);
             pointer-events: none;
         }
 
-        /* --- 文字排版优化 (Issue 3) --- */
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%;
             pointer-events: none; z-index: 5;
-            display: flex; flex-direction: column; 
-            justify-content: flex-end; 
-            padding-bottom: 40px; /* 底部留白 */
-            align-items: center;
-            text-align: center;
+            display: flex; flex-direction: column; justify-content: flex-end; 
+            padding-bottom: 45px; align-items: center; text-align: center;
         }
-        
         .card-content h2 { 
-            margin: 0; 
-            font-size: 34px; /* 稍微缩小一点显得精致 */
-            font-weight: 700; 
-            color: rgba(255,255,255,0.95);
-            line-height: 1.1; /* 紧凑行高 */
-            letter-spacing: -0.5px;
+            margin: 0; font-size: 32px; font-weight: 700; color: rgba(255,255,255,0.95);
+            line-height: 1.1; letter-spacing: -0.5px;
             text-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
-        
         .card-content p { 
-            margin: 6px 0 0 0; /* 控制行间距 */
-            font-size: 13px; 
-            letter-spacing: 2px; /* 增加字间距，提升高级感 */
-            font-weight: 500;
-            color: rgba(255,255,255,0.6); 
-            text-transform: uppercase; 
+            margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
+            color: rgba(255,255,255,0.65); text-transform: uppercase; 
         }
 
-        /* --- 弱化图标 (Issue 2) --- */
+        /* 上传按钮 - 极简线条 */
         .upload-btn {
-            position: absolute; top: 25px; right: 25px; 
-            width: 44px; height: 44px;
-            /* 去掉背景和边框 */
-            background: transparent; border: none;
+            position: absolute; top: 24px; right: 24px; 
+            width: 44px; height: 44px; background: transparent; border: none;
             display: flex; justify-content: center; align-items: center; z-index: 20;
-            cursor: pointer;
-            opacity: 0.3; /* 默认几乎透明 */
-            transition: opacity 0.3s, transform 0.2s;
+            cursor: pointer; opacity: 0.2; transition: opacity 0.3s, transform 0.2s;
         }
         .upload-btn:active { transform: scale(0.9); opacity: 1; }
         .upload-btn:hover { opacity: 0.8; }
-        /* 图标加一点阴影保证在亮色图片上也能看见 */
-        .upload-btn svg { stroke: white; width: 22px; height: 22px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); }
+        .upload-btn svg { stroke: white; width: 24px; height: 24px; stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));}
 
         /* --- 背面 --- */
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
-            backdrop-filter: blur(40px) saturate(150%); -webkit-backdrop-filter: blur(40px) saturate(150%);
+            backdrop-filter: blur(50px) saturate(160%); -webkit-backdrop-filter: blur(50px) saturate(160%);
             border: var(--glass-border); box-shadow: 0 30px 80px rgba(0,0,0,0.5);
             padding: 70px 35px 40px 35px; display: flex; flex-direction: column; color: white;
         }
@@ -194,12 +163,12 @@
             margin-bottom: 8px; color: rgba(255,255,255,0.4); font-weight: 600; letter-spacing: 1px;
         }
         .form-group input, .form-group textarea {
-            width: 100%; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08);
+            width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08);
             padding: 14px; border-radius: 14px; color: #fff; outline: none; box-sizing: border-box; 
             font-size: 16px; font-family: inherit; transition: all 0.3s;
         }
         .form-group input:focus, .form-group textarea:focus { 
-            background: rgba(0, 0, 0, 0.45); border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(0, 0, 0, 0.4); border-color: rgba(255, 255, 255, 0.25);
         }
         .form-group textarea { resize: none; height: 100px; line-height: 1.5; }
         
@@ -211,27 +180,36 @@
         }
         .btn-delete { background: rgba(255, 69, 58, 0.1); color: #FF453A; }
 
-        .fab-container {
-            position: fixed; bottom: 40px; right: 40px; z-index: 100;
-            display: flex; flex-direction: column; align-items: flex-end; gap: 15px;
+        /* --- 特殊卡片：添加按钮卡片 --- */
+        .card-add {
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.15);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer; transition: background 0.3s;
         }
-        .fab-main {
-            width: 64px; height: 64px; background: rgba(255,255,255,0.9); 
-            backdrop-filter: blur(10px); border-radius: 50%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center;
-            color: black; font-size: 32px; cursor: pointer; transition: transform 0.2s;
+        .card-add:active { background: rgba(255,255,255,0.06); }
+        
+        .add-icon { 
+            font-size: 60px; color: rgba(255,255,255,0.3); font-weight: 100; margin-bottom: 20px; transition: color 0.3s;
         }
-        .fab-main:active { transform: scale(0.9); }
-        .roast-menu {
-            display: none; background: rgba(30,30,30,0.9); padding: 10px; border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6); flex-direction: column; gap: 6px; 
-            border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(20px);
+        .card-add:hover .add-icon { color: rgba(255,255,255,0.6); }
+
+        /* 原地展开的菜单 */
+        .add-menu {
+            display: none; flex-direction: column; gap: 12px; width: 60%;
+            animation: fadeIn 0.3s ease;
         }
-        .roast-menu.show { display: flex; }
-        .roast-option { padding: 12px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; text-align: center; cursor: pointer; color: white; }
-        .opt-light { background: rgba(212, 163, 115, 0.3); color: #ffdec0; }
-        .opt-medium { background: rgba(141, 110, 99, 0.3); color: #ffccbc; }
-        .opt-dark { background: rgba(62, 39, 35, 0.6); color: #bcaaa4; }
+        .add-menu.show { display: flex; }
+        .add-menu-btn {
+            background: rgba(255,255,255,0.08); padding: 16px; border-radius: 16px;
+            text-align: center; color: white; font-weight: 600; font-size: 14px;
+            backdrop-filter: blur(10px); cursor: pointer; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .opt-light { color: #ffe0b2; }
+        .opt-medium { color: #ffccbc; }
+        .opt-dark { color: #d7ccc8; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .status-toast {
             position: fixed; top: env(safe-area-inset-top); margin-top: 10px; left: 50%; transform: translateX(-50%);
@@ -239,7 +217,7 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #444; font-weight: 500;}
+        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #333; font-weight: 500;}
     </style>
 </head>
 <body>
@@ -247,23 +225,15 @@
 <div class="status-toast" id="statusToast">SAVED</div>
 
 <div class="app-container">
-    <div class="loading-text" id="loading">Loading...</div>
+    <div class="loading-text" id="loading">...</div>
     <div class="card-scroller" id="scroller">
-        <!-- 伪元素自动处理首尾间距，无需spacer -->
+        <!-- 卡片列表 -->
+        <!-- JS 会在这里动态插入 "添加" 卡片 -->
     </div>
-</div>
-
-<div class="fab-container">
-    <div class="roast-menu" id="roastMenu">
-        <div class="roast-option opt-light" onclick="addNewCard('light')">Light Roast</div>
-        <div class="roast-option opt-medium" onclick="addNewCard('medium')">Medium Roast</div>
-        <div class="roast-option opt-dark" onclick="addNewCard('dark')">Dark Roast</div>
-    </div>
-    <div class="fab-main" onclick="toggleMenu()">+</div>
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Zen';
+    const DB_NAME = 'CoffeeJournalDB_ZenMaster';
     const DB_VERSION = 1;
     const STORE_NAME = 'coffees';
     let db;
@@ -365,19 +335,21 @@
     const scroller = document.getElementById('scroller');
     const loading = document.getElementById('loading');
 
+    // 观察器负责懒加载图片和激活状态
     const cardObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const cardWrapper = entry.target;
+            // 排除添加按钮卡片
+            if(cardWrapper.id === 'add-card-wrapper') return;
+
             const img = cardWrapper.querySelector('.bg-image');
             const id = parseInt(cardWrapper.getAttribute('data-id'));
 
-            // 图片加载
             if (entry.isIntersecting && imageCache.has(id)) {
                 img.src = imageCache.get(id);
                 img.style.opacity = '1';
             }
 
-            // 逻辑激活
             if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
                 cardWrapper.classList.add('active');
             } else {
@@ -394,12 +366,8 @@
         const coffees = await getAllCoffees();
         loading.style.display = 'none';
 
-        if (coffees.length === 0) {
-            const first = await addCoffee('medium');
-            renderCard(first);
-        } else {
-            coffees.forEach(renderCard);
-        }
+        coffees.forEach(renderCard);
+        renderAddButton(); // 最后渲染添加按钮
     }
 
     function renderCard(coffee) {
@@ -418,7 +386,7 @@
                 <div class="card-front">
                     <label class="upload-btn" onclick="event.stopPropagation()">
                         <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${coffee.id})">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                     </label>
                     <img id="img-${coffee.id}" class="bg-image" src="${initialSrc}" style="opacity: ${initialOpacity}">
                     <div class="overlay-gradient"></div>
@@ -458,16 +426,60 @@
             }
         };
 
-        scroller.appendChild(wrapper);
+        // 插入在添加按钮之前
+        const addBtn = document.getElementById('add-card-wrapper');
+        if(addBtn) {
+            scroller.insertBefore(wrapper, addBtn);
+        } else {
+            scroller.appendChild(wrapper);
+        }
+        
         cardObserver.observe(wrapper);
     }
 
-    function toggleMenu() { document.getElementById('roastMenu').classList.toggle('show'); }
+    // 渲染末尾的“添加”卡片
+    function renderAddButton() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'card-wrapper';
+        wrapper.id = 'add-card-wrapper';
+        
+        wrapper.innerHTML = `
+            <div class="card-front card-add" onclick="toggleAddMenu(this)">
+                <div id="add-icon-el" class="add-icon">+</div>
+                <div id="add-menu-el" class="add-menu">
+                    <div class="add-menu-btn opt-light" onclick="createCard('light', event)">Light</div>
+                    <div class="add-menu-btn opt-medium" onclick="createCard('medium', event)">Medium</div>
+                    <div class="add-menu-btn opt-dark" onclick="createCard('dark', event)">Dark</div>
+                </div>
+            </div>
+        `;
+        scroller.appendChild(wrapper);
+    }
 
-    async function addNewCard(roast) {
-        toggleMenu();
+    function toggleAddMenu(el) {
+        const icon = el.querySelector('#add-icon-el');
+        const menu = el.querySelector('#add-menu-el');
+        if(menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            icon.style.display = 'block';
+        } else {
+            menu.classList.add('show');
+            icon.style.display = 'none';
+        }
+    }
+
+    async function createCard(roast, e) {
+        e.stopPropagation();
+        // 恢复添加卡片状态
+        const addWrapper = document.getElementById('add-card-wrapper');
+        const icon = addWrapper.querySelector('#add-icon-el');
+        const menu = addWrapper.querySelector('#add-menu-el');
+        menu.classList.remove('show');
+        icon.style.display = 'block';
+
         const newCoffee = await addCoffee(roast);
         renderCard(newCoffee);
+        
         setTimeout(() => {
             const el = document.getElementById(`card-wrapper-${newCoffee.id}`);
             el.scrollIntoView({ behavior: 'smooth', inline: 'center' });
