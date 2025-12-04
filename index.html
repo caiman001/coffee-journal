@@ -2,33 +2,28 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 关键优化：禁止用户缩放，适配 iPad 分辨率 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <!-- iOS/iPadOS 专属：添加到主屏幕后全屏运行 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <!-- 状态栏设置为黑色沉浸式 -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Infinity Coffee Journal</title>
+    <title>Coffee Journal Stable</title>
     <style>
         :root {
-            --bg-color: #f2f2f2;
-            /* iPad 屏幕较大，我们可以稍微加大一点卡片尺寸，让它更有质感 */
-            --card-width: 320px; 
-            --card-height: 540px;
-            
+            --bg-color: #000000;
+            --card-width: 340px;
+            --card-height: 560px;
             --roast-light: #D4A373;
             --roast-medium: #8D6E63;
             --roast-dark: #3E2723;
-            --back-color: #2c1e1a;
+            --back-color: #1a1a1a;
+            --text-color: #ffffff;
         }
 
         body {
             margin: 0;
             background-color: var(--bg-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -36,186 +31,143 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            /* 针对 iOS 的平滑字体渲染 */
             -webkit-font-smoothing: antialiased;
+            color: var(--text-color);
         }
 
-        /* --- 滚动区域 --- */
-        .app-container {
-            width: 100%;
-            height: 100vh;
-            position: relative;
-        }
+        .app-container { width: 100%; height: 100vh; position: relative; }
 
         .card-scroller {
-            display: flex;
-            gap: 30px; /* iPad 上间距稍微大一点更好看 */
-            overflow-x: auto;
-            padding: 0 50vw; 
-            scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            width: 100%;
-            height: 100%;
-            align-items: center;
-            box-sizing: border-box;
-            contain: layout style paint;
+            display: flex; gap: 40px; overflow-x: auto; padding: 0 50vw; 
+            scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; width: 100%; height: 100%; align-items: center; box-sizing: border-box;
         }
         .card-scroller::-webkit-scrollbar { display: none; }
-
         .card-spacer { min-width: calc(50vw - var(--card-width)/2); }
 
-        /* --- 3D 卡片 --- */
         .card-wrapper {
-            position: relative;
-            flex: 0 0 var(--card-width);
-            height: var(--card-height);
-            scroll-snap-align: center;
-            perspective: 1000px;
-            z-index: 1;
-            transform: scale(0.9); /* iPad 上稍微大一点的默认缩放 */
-            opacity: 0.7;
-            transition: transform 0.3s ease, opacity 0.3s ease;
+            position: relative; flex: 0 0 var(--card-width); height: var(--card-height);
+            scroll-snap-align: center; perspective: 1200px; z-index: 1;
+            transform: scale(0.9); opacity: 0.5;
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
             will-change: transform, opacity;
         }
-
-        .card-wrapper.active {
-            transform: scale(1.1); /* 激活时放得更大 */
-            opacity: 1;
-            z-index: 10;
-            filter: drop-shadow(0 20px 40px rgba(0,0,0,0.2)); /* 增加更强的立体感 */
-        }
+        .card-wrapper.active { transform: scale(1.05); opacity: 1; z-index: 10; }
 
         .card {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-            transform-style: preserve-3d;
-            border-radius: 28px; /* 圆角加大 */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            position: relative; width: 100%; height: 100%;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d; border-radius: 32px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); 
         }
-
         .card-wrapper.flipped .card { transform: rotateY(180deg); }
 
         .card-front, .card-back {
             position: absolute; width: 100%; height: 100%;
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
-            border-radius: 28px; overflow: hidden; box-sizing: border-box;
+            border-radius: 32px; overflow: hidden; box-sizing: border-box;
+            background-color: var(--back-color);
         }
 
-        /* --- 正面 --- */
-        .card-front {
-            background-color: white;
-            border: 10px solid white; /* 边框加粗 */
-            display: flex; flex-direction: column; align-items: center;
-        }
-
+        .card-front { border: none; display: flex; flex-direction: column; align-items: center; transform: rotateY(0deg); z-index: 2; }
+        
         .bg-image {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover; z-index: 0;
-            background-color: #eee;
-            transition: opacity 0.3s;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: 0; background-color: #1a1a1a; transition: opacity 0.3s;
         }
-
         .overlay-gradient {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%);
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.9) 100%);
             z-index: 1; pointer-events: none;
         }
 
         .badge {
-            margin-top: 50px; width: 90px; height: 90px;
-            border-radius: 50%; background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px); /* iPad 支持毛玻璃效果 */
-            -webkit-backdrop-filter: blur(10px);
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 2;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15); position: relative;
+            margin-top: 50px; width: 80px; height: 80px; border-radius: 50%; 
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .badge::after {
-            content: ''; position: absolute; top: 5px; left: 5px; right: 5px; bottom: 5px;
-            border: 1px dashed; border-radius: 50%; opacity: 0.6;
-        }
-        .badge span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #888; }
-        .badge strong { font-size: 15px; font-weight: 900; text-transform: uppercase; margin-top: 2px; }
+        .badge span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #aaa; }
+        .badge strong { font-size: 14px; font-weight: 900; text-transform: uppercase; margin-top: 2px; }
 
         .card-content {
-            position: absolute; bottom: 40px; left: 0; width: 100%;
-            text-align: center; z-index: 2; color: white; padding: 0 20px;
+            position: absolute; bottom: 50px; left: 0; width: 100%; text-align: center; z-index: 2; padding: 0 20px;
         }
-        .card-content h2 { margin: 0; font-size: 32px; font-weight: 800; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-        .card-content p { margin: 8px 0 0; font-size: 12px; letter-spacing: 3px; opacity: 0.9; text-transform: uppercase; }
+        .card-content h2 { margin: 0; font-size: 36px; font-weight: 800; text-shadow: 0 4px 15px rgba(0,0,0,0.8); letter-spacing: -1px; }
+        .card-content p { margin: 10px 0 0; font-size: 12px; letter-spacing: 4px; opacity: 0.8; text-transform: uppercase; font-weight: 600; }
 
         .upload-btn {
-            position: absolute; top: 25px; right: 25px; width: 50px; height: 50px;
-            background: rgba(0,0,0,0.3); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            position: absolute; top: 30px; right: 30px; width: 48px; height: 48px;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             border-radius: 50%; display: flex; justify-content: center; align-items: center; z-index: 5;
-            cursor: pointer; border: 1px solid rgba(255,255,255,0.3);
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.2);
         }
-        .upload-btn svg { stroke: white; width: 24px; height: 24px; }
+        .upload-btn svg { stroke: white; width: 22px; height: 22px; }
 
-        /* --- 背面 --- */
         .card-back {
-            transform: rotateY(180deg); background: var(--back-color);
-            color: #e6dac8; padding: 50px 35px; display: flex; flex-direction: column;
-            border: 10px solid var(--back-color);
+            transform: rotateY(180deg); background: var(--back-color); color: #ccc; 
+            padding: 60px 40px; display: flex; flex-direction: column; border: none; z-index: 1;
         }
         .card-back h3 {
-            text-align: center; font-size: 16px; letter-spacing: 2px;
+            text-align: center; font-size: 14px; letter-spacing: 2px;
             text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 20px; margin: 0 0 30px 0; color: rgba(255,255,255,0.4);
+            padding-bottom: 20px; margin: 0 0 30px 0; color: #fff;
         }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 11px; text-transform: uppercase; opacity: 0.5; margin-bottom: 8px; }
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; font-size: 12px; text-transform: uppercase; opacity: 0.5; margin-bottom: 10px; color: #888; }
         .form-group input, .form-group textarea {
-            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            padding: 14px; border-radius: 12px; color: #fff; outline: none; box-sizing: border-box; font-size: 16px; /* 16px 防止 iOS 输入时自动放大 */
+            width: 100%; background: #2a2a2a; border: 1px solid #333; padding: 16px; border-radius: 16px; 
+            color: #fff; outline: none; box-sizing: border-box; font-size: 16px; transition: border-color 0.3s;
         }
-        .form-group textarea { resize: none; height: 80px; }
+        .form-group input:focus, .form-group textarea:focus { border-color: #666; background: #333; }
+        .form-group textarea { resize: none; height: 100px; }
         
         .action-row { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
-        .btn-text { background: none; border: none; color: white; padding: 10px 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); font-size: 13px; }
-        .btn-delete { color: #ff6b6b; border-color: rgba(255,107,107,0.3); }
+        .btn-text { background: none; border: none; color: white; padding: 12px 24px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); font-size: 14px; cursor: pointer; }
+        .btn-delete { color: #ff5555; border-color: rgba(255,85,85,0.2); }
 
-        /* --- UI 组件 --- */
         .fab-container {
             position: fixed; bottom: 40px; right: 40px; z-index: 100;
             display: flex; flex-direction: column; align-items: flex-end; gap: 15px;
         }
         .fab-main {
-            width: 70px; height: 70px; background: #2c1e1a; border-radius: 50%;
-            box-shadow: 0 6px 25px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center;
-            color: white; font-size: 36px; cursor: pointer; border: 2px solid rgba(255,255,255,0.1);
+            width: 72px; height: 72px; background: #fff; border-radius: 50%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center;
+            color: black; font-size: 36px; cursor: pointer; transition: transform 0.2s;
         }
+        .fab-main:active { transform: scale(0.9); }
         .roast-menu {
-            display: none; background: white; padding: 15px; border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15); flex-direction: column; gap: 8px;
+            display: none; background: #1a1a1a; padding: 15px; border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); flex-direction: column; gap: 8px; border: 1px solid #333;
         }
         .roast-menu.show { display: flex; }
-        .roast-option { padding: 12px 24px; border-radius: 10px; font-size: 15px; font-weight: bold; text-align: center; cursor: pointer; }
-        .opt-light { background: #fff5eb; color: var(--roast-light); }
-        .opt-medium { background: #f5f0ee; color: var(--roast-medium); }
-        .opt-dark { background: #eeeae9; color: var(--roast-dark); }
-
+        .roast-option { padding: 15px 30px; border-radius: 12px; font-size: 16px; font-weight: bold; text-align: center; cursor: pointer; color: white; }
+        .opt-light { background: rgba(212, 163, 115, 0.2); color: var(--roast-light); }
+        .opt-medium { background: rgba(141, 110, 99, 0.2); color: var(--roast-medium); }
+        .opt-dark { background: rgba(62, 39, 35, 0.4); color: var(--roast-dark); }
         .roast-light .badge strong { color: var(--roast-light); }
-        .roast-light .badge::after { border-color: var(--roast-light); }
         .roast-medium .badge strong { color: var(--roast-medium); }
-        .roast-medium .badge::after { border-color: var(--roast-medium); }
         .roast-dark .badge strong { color: var(--roast-dark); }
-        .roast-dark .badge::after { border-color: var(--roast-dark); }
 
-        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #999; }
+        /* 状态提示 */
+        .status-toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);
+            padding: 8px 16px; border-radius: 20px; color: white; font-size: 12px;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200;
+        }
+
+        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #444; font-weight: 500;}
     </style>
 </head>
 <body>
 
+<div class="status-toast" id="statusToast">Saved</div>
+
 <div class="app-container">
-    <div class="loading-text" id="loading">Loading database...</div>
+    <div class="loading-text" id="loading">Initializing Secure Storage...</div>
     <div class="card-scroller" id="scroller">
         <div class="card-spacer"></div>
-        <!-- Cards injected here -->
         <div class="card-spacer"></div>
     </div>
 </div>
@@ -230,13 +182,22 @@
 </div>
 
 <script>
-    // JS 逻辑与之前的高性能版完全一致，无需修改
-    const DB_NAME = 'CoffeeJournalDB_iPad';
+    const DB_NAME = 'CoffeeJournalDB_Stable'; // 更改数据库名以确保全新结构
     const DB_VERSION = 1;
     const STORE_NAME = 'coffees';
     let db;
-    let coffeeCache = {}; 
+    // 内存缓存: id -> base64String
+    let imageCache = new Map(); 
 
+    // 显示保存状态
+    function showToast(msg) {
+        const t = document.getElementById('statusToast');
+        t.innerText = msg;
+        t.style.opacity = '1';
+        setTimeout(() => t.style.opacity = '0', 2000);
+    }
+
+    // --- 1. IndexedDB (存储 Base64 字符串) ---
     function initDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -254,6 +215,7 @@
         });
     }
 
+    // 获取所有数据（包含图片Base64，因为Base64本质是文本，IndexedDB加载很快）
     function getAllCoffees() {
         return new Promise((resolve) => {
             const tx = db.transaction(STORE_NAME, 'readonly');
@@ -262,12 +224,18 @@
         });
     }
 
-    function getCoffeeById(id) {
-        return new Promise((resolve) => {
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const store = tx.objectStore(STORE_NAME);
-            store.get(id).onsuccess = (e) => resolve(e.target.result);
-        });
+    // 更新数据
+    function updateCoffee(id, data) {
+        showToast('Saving...');
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.get(id).onsuccess = (e) => {
+            const record = e.target.result;
+            if(record) {
+                Object.assign(record, data);
+                store.put(record).onsuccess = () => showToast('Saved');
+            }
+        };
     }
 
     function addCoffee(roastType) {
@@ -275,25 +243,15 @@
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
             const newCoffee = {
-                name: 'New Coffee', origin: '', notes: '', roast: roastType, imageBlob: null, created: Date.now()
+                name: 'New Coffee', origin: '', notes: '', roast: roastType, 
+                imageData: null, // 这里改存 Base64 字符串
+                created: Date.now()
             };
             store.add(newCoffee).onsuccess = (e) => {
                 newCoffee.id = e.target.result;
                 resolve(newCoffee);
             };
         });
-    }
-
-    function updateCoffee(id, data) {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.get(id).onsuccess = (e) => {
-            const record = e.target.result;
-            if(record) {
-                Object.assign(record, data);
-                store.put(record);
-            }
-        };
     }
 
     function deleteCoffee(id) {
@@ -304,6 +262,53 @@
         });
     }
 
+    // --- 2. 图片压缩与转换 (核心修复) ---
+    // 将图片转换为 Base64 字符串，并限制尺寸，确保存储可靠性
+    function processImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 限制最大边长为 1024px，保证清晰度同时减小体积
+                    const maxDim = 1024;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height *= maxDim / width;
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width *= maxDim / height;
+                            height = maxDim;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // 转换为 JPEG Base64
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    resolve(dataUrl);
+                };
+            };
+        });
+    }
+
+    // --- 3. 页面渲染 ---
+    const scroller = document.getElementById('scroller');
+    const loading = document.getElementById('loading');
+
+    // 懒加载观察器
     const cardObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const cardWrapper = entry.target;
@@ -311,35 +316,18 @@
             const id = parseInt(cardWrapper.getAttribute('data-id'));
 
             if (entry.isIntersecting) {
-                if (!img.src || img.src === "" || img.src.includes('data:image')) {
-                    loadHighResImage(id, img);
+                // 如果内存中有，直接用
+                if (imageCache.has(id)) {
+                    img.src = imageCache.get(id);
+                    img.style.opacity = '1';
                 }
             } else {
-                if (img.src && !img.src.includes('data:image')) {
-                    URL.revokeObjectURL(img.src);
-                    img.src = ""; 
-                }
+                // 滑出屏幕时，不清除src，防止M1上闪烁。
+                // Base64字符串在DOM中占用内存，但现代iPad足以应付几十张。
+                // 如果数量极大(>50)，可以考虑清除 src
             }
         });
-    }, {
-        root: document.getElementById('scroller'),
-        rootMargin: '300px', 
-        threshold: 0.1
-    });
-
-    async function loadHighResImage(id, imgElement) {
-        const data = await getCoffeeById(id);
-        if (data && data.imageBlob) {
-            const url = URL.createObjectURL(data.imageBlob);
-            imgElement.src = url;
-            imgElement.style.opacity = '1';
-        } else {
-            imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=='; 
-        }
-    }
-
-    const scroller = document.getElementById('scroller');
-    const loading = document.getElementById('loading');
+    }, { root: scroller, rootMargin: '600px', threshold: 0 });
 
     async function initApp() {
         await initDB();
@@ -357,12 +345,19 @@
     }
 
     function renderCard(coffee) {
-        coffeeCache[coffee.id] = coffee;
+        // 将数据放入缓存
+        if (coffee.imageData) {
+            imageCache.set(coffee.id, coffee.imageData);
+        }
 
         const wrapper = document.createElement('div');
         wrapper.className = `card-wrapper roast-${coffee.roast}`;
         wrapper.id = `card-wrapper-${coffee.id}`;
-        wrapper.setAttribute('data-id', coffee.id); 
+        wrapper.setAttribute('data-id', coffee.id);
+
+        // 初始渲染时，如果有缓存直接显示，否则显示空
+        const initialSrc = imageCache.get(coffee.id) || '';
+        const initialOpacity = initialSrc ? '1' : '0';
 
         wrapper.innerHTML = `
             <div class="card">
@@ -371,16 +366,16 @@
                         <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${coffee.id})">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                     </label>
-                    <img id="img-${coffee.id}" class="bg-image default-bg" src="">
+                    <img id="img-${coffee.id}" class="bg-image" src="${initialSrc}" style="opacity: ${initialOpacity}">
                     <div class="overlay-gradient"></div>
                     <div class="badge"><span>Roast</span><strong>${coffee.roast}</strong></div>
                     <div class="card-content">
                         <h2 id="title-${coffee.id}">${coffee.name}</h2>
-                        <p>${coffee.roast.toUpperCase()} ROAST</p>
+                        <p>${coffee.roast.toUpperCase()}</p>
                     </div>
                 </div>
                 <div class="card-back" onclick="event.stopPropagation()">
-                    <h3>Edit Details</h3>
+                    <h3>Details</h3>
                     <div class="form-group">
                         <label>Coffee Name</label>
                         <input type="text" value="${coffee.name}" oninput="handleInput(${coffee.id}, 'name', this.value)">
@@ -391,7 +386,7 @@
                     </div>
                     <div class="form-group">
                         <label>Notes</label>
-                        <textarea placeholder="Notes..." oninput="handleInput(${coffee.id}, 'notes', this.value)">${coffee.notes}</textarea>
+                        <textarea placeholder="Tasting notes..." oninput="handleInput(${coffee.id}, 'notes', this.value)">${coffee.notes}</textarea>
                     </div>
                     <div class="action-row">
                         <button class="btn-text btn-delete" onclick="handleDelete(${coffee.id})">Delete</button>
@@ -432,23 +427,32 @@
         updateCoffee(id, { [field]: value });
     }
 
-    function handleImageUpload(event, id) {
+    async function handleImageUpload(event, id) {
         const file = event.target.files[0];
         if (file) {
-            updateCoffee(id, { imageBlob: file });
+            showToast('Compressing...');
+            // 转换为 Base64
+            const base64String = await processImage(file);
+            
+            // 存入数据库
+            updateCoffee(id, { imageData: base64String });
+            
+            // 更新 UI 和 缓存
+            imageCache.set(id, base64String);
             const imgEl = document.getElementById(`img-${id}`);
-            const url = URL.createObjectURL(file);
-            imgEl.src = url;
+            imgEl.src = base64String;
+            imgEl.style.opacity = '1';
         }
     }
 
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
+            imageCache.delete(id);
             const wrapper = document.getElementById(`card-wrapper-${id}`);
-            cardObserver.unobserve(wrapper); 
+            cardObserver.unobserve(wrapper);
             wrapper.style.opacity = '0';
-            wrapper.style.transform = 'scale(0)';
+            wrapper.style.transform = 'scale(0.5)';
             setTimeout(() => { wrapper.remove(); updateScale(); }, 300);
         }
     }
@@ -458,10 +462,7 @@
     let ticking = false;
     function onScroll() {
         if (!ticking) {
-            window.requestAnimationFrame(() => {
-                updateScale();
-                ticking = false;
-            });
+            window.requestAnimationFrame(() => { updateScale(); ticking = false; });
             ticking = true;
         }
     }
@@ -474,12 +475,11 @@
         for (let i = 0; i < cards.length; i++) {
             const card = cards[i];
             const rect = card.getBoundingClientRect();
-            if (rect.right < 0 || rect.left > window.innerWidth) continue;
-
+            if (rect.right < -100 || rect.left > window.innerWidth + 100) continue;
             const cardCenter = rect.left + rect.width / 2;
             const distance = Math.abs(centerPoint - cardCenter);
             
-            if (distance < 140) { // iPad 判定范围稍微加大
+            if (distance < 160) {
                 if (!card.classList.contains('active')) card.classList.add('active');
             } else {
                 if (card.classList.contains('active')) {
