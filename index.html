@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal Final V9</title>
+    <title>Coffee Journal V11</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -18,11 +18,17 @@
             --roast-medium: #8D6E63;
             --roast-dark: #3E2723;
             
-            --glass-border: 1px solid rgba(255, 255, 255, 0.15);
-            --glass-bg: rgba(30, 30, 30, 0.55);
-            --glass-shadow: 
-                0 25px 50px rgba(0,0,0,0.7), 
-                0 0 0 1px rgba(255,255,255,0.08) inset;
+            /* 玻璃态基础 */
+            --glass-bg: rgba(28, 28, 30, 0.65);
+            /* 阴影加深，突出悬浮感 */
+            --glass-shadow: 0 40px 80px -10px rgba(0,0,0,0.9);
+        }
+
+        /* 注册动画属性 */
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
         }
 
         body {
@@ -32,7 +38,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100dvh;
+            height: 100dvh; /* 物理全屏 */
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
@@ -51,9 +57,10 @@
             padding: 0;
         }
 
+        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
-            gap: 24px;
+            gap: 30px;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
@@ -74,6 +81,7 @@
             width: calc(50vw - var(--card-width) / 2);
         }
 
+        /* --- 卡片容器 --- */
         .card-wrapper {
             position: relative;
             flex: 0 0 var(--card-width);
@@ -88,6 +96,7 @@
         }
         .card-wrapper.active { z-index: 100; }
 
+        /* --- 卡片本体 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -99,32 +108,66 @@
             position: absolute; width: 100%; height: 100%;
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
             border-radius: 40px; box-sizing: border-box;
+            background: #121212;
+            box-shadow: var(--glass-shadow);
         }
 
+        /* --- 🌟 核心优化：微弱呼吸流光 (Subtle Breathing Streamer) --- */
+        .card-front::after, .card-back::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 40px; 
+            padding: 1px; /* 极细边框 */
+            
+            /* 
+               优化点1：极低透明度 (0.15) 
+               优化点2：大范围透明区，实现“偶尔出现”
+            */
+            background: conic-gradient(from var(--angle), 
+                transparent 40%, 
+                rgba(255,255,255,0.15) 50%, 
+                transparent 60%
+            );
+            
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            z-index: 10;
+            
+            /* 
+               优化点3：双重动画 
+               spin: 12秒一圈，极慢
+               breathe: 透明度在 0.3 到 1.0 之间呼吸，忽明忽暗
+            */
+            animation: 
+                spin 12s linear infinite, 
+                breathe 6s ease-in-out infinite alternate;
+        }
+
+        @keyframes spin {
+            to { --angle: 360deg; }
+        }
+
+        @keyframes breathe {
+            0% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        /* --- 正面 --- */
         .card-front {
             overflow: hidden; z-index: 2; transform: rotateY(0deg);
-            background: #121212;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.9);
         }
 
         .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
         
-        /* 核心优化：更柔和、自然的渐变模糊 */
+        /* 移除高斯模糊，保持纯净通透，仅保留压暗渐变 */
         .overlay-gradient {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; /* 稍微加高一点，让过渡空间更足 */
-            
-            /* 背景渐变：从透明到深黑，更加平滑 */
-            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.85) 100%);
-            
-            /* 模糊减半：15px -> 8px */
-            backdrop-filter: blur(8px); 
-            -webkit-backdrop-filter: blur(8px);
-            
-            /* 遮罩渐变：拉长过渡区间 (0% -> 80%)，消除分界线 */
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 80%);
-            mask-image: linear-gradient(to bottom, transparent 0%, black 80%);
-            
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.95) 100%);
             z-index: 1; pointer-events: none;
         }
 
@@ -137,13 +180,14 @@
         .card-content h2 { 
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
             line-height: 1.1; letter-spacing: -0.5px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
         .card-content p { 
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
             color: rgba(255,255,255,0.7); text-transform: uppercase; 
         }
 
+        /* 上传按钮 */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 44px; height: 44px; background: transparent; border: none;
@@ -152,31 +196,35 @@
         }
         .upload-btn:active { transform: scale(0.9); opacity: 1; }
         .upload-btn:hover { opacity: 0.8; }
-        .upload-btn svg { stroke: white; width: 24px; height: 24px; stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));}
+        .upload-btn svg { stroke: white; width: 24px; height: 24px; stroke-width: 1.5; filter: drop-shadow(0 1px 4px rgba(0,0,0,0.8));}
 
+        /* --- 背面 (参数面板) --- */
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
-            backdrop-filter: blur(60px) saturate(180%);
-            -webkit-backdrop-filter: blur(60px) saturate(180%);
-            border: var(--glass-border);
-            box-shadow: var(--glass-shadow);
+            /* 背面保留模糊，增强可读性 */
+            backdrop-filter: blur(50px) saturate(180%);
+            -webkit-backdrop-filter: blur(50px) saturate(180%);
             padding: 50px 30px; 
             display: flex; flex-direction: column; color: white;
         }
 
         .title-input-group {
-            margin-bottom: 30px; text-align: center;
+            margin-bottom: 30px; 
+            text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             padding-bottom: 15px;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 40px; 
         }
         .title-input {
             width: 100%; background: transparent; border: none;
             font-size: 24px; font-weight: 700; color: white; text-align: center;
-            outline: none; font-family: inherit;
+            outline: none; font-family: inherit; line-height: 1.2; padding: 0; margin: 0;
         }
         .title-input::placeholder { color: rgba(255,255,255,0.3); }
 
+        /* 参数列表布局 (严格对齐) */
         .data-list {
             display: flex; flex-direction: column; gap: 0; width: 100%;
             margin-bottom: 20px; 
@@ -215,7 +263,7 @@
         .data-unit {
             font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
             width: 25px; 
-            text-align: right; /* 单位右对齐 */
+            text-align: right; 
             padding-left: 0;
             margin-left: 5px; 
             flex-shrink: 0; 
@@ -225,16 +273,23 @@
         .btn-text { 
             background: rgba(255,255,255,0.08); border: none; color: white; 
             padding: 12px 24px; border-radius: 24px; font-size: 13px; font-weight: 500; cursor: pointer; 
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(10px); transition: background 0.2s;
         }
+        .btn-text:active { background: rgba(255,255,255,0.15); }
         .btn-delete { background: rgba(255, 69, 58, 0.1); color: #FF453A; }
+        .btn-delete:active { background: rgba(255, 69, 58, 0.2); }
 
         .card-add {
             background: rgba(255,255,255,0.02);
-            border: 1px dashed rgba(255,255,255,0.15);
+            position: relative;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             cursor: pointer; transition: background 0.3s;
             border-radius: 40px; box-sizing: border-box; height: 100%; width: 100%;
+        }
+        /* 添加按钮的静态边框，不参与流光 */
+        .card-add::after {
+            content: ''; position: absolute; inset: 0; border-radius: 40px;
+            border: 1px dashed rgba(255,255,255,0.2); pointer-events: none;
         }
         .card-add:active { background: rgba(255,255,255,0.05); }
         .add-icon { 
@@ -243,7 +298,7 @@
 
         .add-menu {
             display: none; flex-direction: column; gap: 12px; width: 60%;
-            animation: fadeIn 0.3s ease;
+            animation: fadeIn 0.3s ease; z-index: 20;
         }
         .add-menu.show { display: flex; }
         .add-menu-btn {
@@ -283,7 +338,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V9'; // V9 Update
+    const DB_NAME = 'CoffeeJournalDB_Pro_V11'; // V11
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
@@ -347,7 +402,7 @@
                 powder: '18', 
                 liquid: '36', 
                 time: '25',   
-                grind: '2.0', // Default Value
+                grind: '2.0', 
                 roast: roastType, 
                 imageData: null, 
                 created: Date.now()
