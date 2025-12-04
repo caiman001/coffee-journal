@@ -2,12 +2,13 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 视口设置：viewport-fit=cover 确保占满全屏，忽略安全区域 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V11</title>
+    <title>Coffee Journal V12 Physical Center</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -18,56 +19,50 @@
             --roast-medium: #8D6E63;
             --roast-dark: #3E2723;
             
-            /* 玻璃态基础 */
             --glass-bg: rgba(28, 28, 30, 0.65);
-            /* 阴影加深，突出悬浮感 */
             --glass-shadow: 0 40px 80px -10px rgba(0,0,0,0.9);
         }
 
-        /* 注册动画属性 */
         @property --angle {
             syntax: '<angle>';
             initial-value: 0deg;
             inherits: false;
         }
 
-        body {
-            margin: 0;
+        html, body {
+            margin: 0; padding: 0;
             background-color: var(--bg-color);
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100dvh; /* 物理全屏 */
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
+            width: 100%; height: 100%;
+            overflow: hidden; /* 禁止页面级滚动 */
+            user-select: none; -webkit-user-select: none;
             -webkit-font-smoothing: antialiased;
             color: #fff;
         }
 
+        /* --- 核心布局：绝对物理居中 --- */
         .app-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
+            position: absolute;
+            inset: 0; /* 强制拉伸至屏幕物理四角 */
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
+            justify-content: center; /* 垂直物理居中 */
+            align-items: center;     /* 水平物理居中 */
+            padding: 0; margin: 0;
+            z-index: 1;
         }
 
-        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
-            gap: 30px;
+            gap: 24px;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
+            /* 宽度占满屏幕，高度只需包裹卡片 */
             width: 100%;
             height: 100%; 
-            align-items: center;
+            align-items: center; /* 这里的 center 配合父级确保卡片在 scroller 内居中 */
             padding: 0; 
             will-change: scroll-position;
         }
@@ -75,8 +70,7 @@
 
         .card-scroller::before,
         .card-scroller::after {
-            content: '';
-            display: block;
+            content: ''; display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
             width: calc(50vw - var(--card-width) / 2);
         }
@@ -96,7 +90,6 @@
         }
         .card-wrapper.active { z-index: 100; }
 
-        /* --- 卡片本体 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -112,59 +105,22 @@
             box-shadow: var(--glass-shadow);
         }
 
-        /* --- 🌟 核心优化：微弱呼吸流光 (Subtle Breathing Streamer) --- */
+        /* --- 呼吸流光特效 --- */
         .card-front::after, .card-back::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 40px; 
-            padding: 1px; /* 极细边框 */
-            
-            /* 
-               优化点1：极低透明度 (0.15) 
-               优化点2：大范围透明区，实现“偶尔出现”
-            */
-            background: conic-gradient(from var(--angle), 
-                transparent 40%, 
-                rgba(255,255,255,0.15) 50%, 
-                transparent 60%
-            );
-            
-            -webkit-mask: 
-                linear-gradient(#fff 0 0) content-box, 
-                linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            pointer-events: none;
-            z-index: 10;
-            
-            /* 
-               优化点3：双重动画 
-               spin: 12秒一圈，极慢
-               breathe: 透明度在 0.3 到 1.0 之间呼吸，忽明忽暗
-            */
-            animation: 
-                spin 12s linear infinite, 
-                breathe 6s ease-in-out infinite alternate;
+            content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
+            background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            pointer-events: none; z-index: 10;
+            animation: spin 12s linear infinite, breathe 6s ease-in-out infinite alternate;
         }
+        @keyframes spin { to { --angle: 360deg; } }
+        @keyframes breathe { 0% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        @keyframes spin {
-            to { --angle: 360deg; }
-        }
-
-        @keyframes breathe {
-            0% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
-
-        /* --- 正面 --- */
-        .card-front {
-            overflow: hidden; z-index: 2; transform: rotateY(0deg);
-        }
-
+        .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
         .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
         
-        /* 移除高斯模糊，保持纯净通透，仅保留压暗渐变 */
+        /* 纯净渐变，无模糊 */
         .overlay-gradient {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.95) 100%);
@@ -187,7 +143,6 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase; 
         }
 
-        /* 上传按钮 */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 44px; height: 44px; background: transparent; border: none;
@@ -198,13 +153,10 @@
         .upload-btn:hover { opacity: 0.8; }
         .upload-btn svg { stroke: white; width: 24px; height: 24px; stroke-width: 1.5; filter: drop-shadow(0 1px 4px rgba(0,0,0,0.8));}
 
-        /* --- 背面 (参数面板) --- */
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
-            /* 背面保留模糊，增强可读性 */
-            backdrop-filter: blur(50px) saturate(180%);
-            -webkit-backdrop-filter: blur(50px) saturate(180%);
+            backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%);
             padding: 50px 30px; 
             display: flex; flex-direction: column; color: white;
         }
@@ -224,49 +176,26 @@
         }
         .title-input::placeholder { color: rgba(255,255,255,0.3); }
 
-        /* 参数列表布局 (严格对齐) */
-        .data-list {
-            display: flex; flex-direction: column; gap: 0; width: 100%;
-            margin-bottom: 20px; 
-        }
-
+        .data-list { display: flex; flex-direction: column; gap: 0; width: 100%; margin-bottom: 20px; }
         .data-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 18px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            height: 24px;
+            padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.08); height: 24px;
         }
+        .data-label { font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px; }
         
-        .data-label {
-            font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px;
-        }
-
-        .data-value-group {
-            display: flex; 
-            align-items: center; 
-            justify-content: flex-end; 
-            width: 140px; 
-        }
-
+        .data-value-group { display: flex; align-items: center; justify-content: flex-end; width: 140px; }
+        
         .data-input {
-            flex: 1; 
-            background: transparent; border: none;
-            text-align: right; 
-            color: white; font-size: 20px; font-weight: 600;
-            outline: none; 
-            font-family: "SF Pro Display", -apple-system, sans-serif;
-            font-variant-numeric: tabular-nums; 
+            flex: 1; background: transparent; border: none; text-align: right; 
+            color: white; font-size: 20px; font-weight: 600; outline: none; 
+            font-family: "SF Pro Display", -apple-system, sans-serif; font-variant-numeric: tabular-nums; 
             padding: 0; margin: 0;
         }
         .data-input::placeholder { color: rgba(255,255,255,0.2); }
         
         .data-unit {
             font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
-            width: 25px; 
-            text-align: right; 
-            padding-left: 0;
-            margin-left: 5px; 
-            flex-shrink: 0; 
+            width: 25px; text-align: right; padding-left: 0; margin-left: 5px; flex-shrink: 0; 
         }
 
         .action-row { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
@@ -280,21 +209,16 @@
         .btn-delete:active { background: rgba(255, 69, 58, 0.2); }
 
         .card-add {
-            background: rgba(255,255,255,0.02);
-            position: relative;
+            background: rgba(255,255,255,0.02); position: relative;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            cursor: pointer; transition: background 0.3s;
-            border-radius: 40px; box-sizing: border-box; height: 100%; width: 100%;
+            cursor: pointer; transition: background 0.3s; border-radius: 40px; box-sizing: border-box; height: 100%; width: 100%;
         }
-        /* 添加按钮的静态边框，不参与流光 */
         .card-add::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px;
             border: 1px dashed rgba(255,255,255,0.2); pointer-events: none;
         }
         .card-add:active { background: rgba(255,255,255,0.05); }
-        .add-icon { 
-            font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; 
-        }
+        .add-icon { font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; }
 
         .add-menu {
             display: none; flex-direction: column; gap: 12px; width: 60%;
@@ -311,7 +235,6 @@
         .opt-light { color: #ffe0b2; }
         .opt-medium { color: #ffccbc; }
         .opt-dark { color: #d7ccc8; }
-        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .status-toast {
@@ -338,7 +261,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V11'; // V11
+    const DB_NAME = 'CoffeeJournalDB_Pro_V12'; // V12
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
@@ -661,7 +584,6 @@
 
     function flipCard(btn) { btn.closest('.card-wrapper').classList.remove('flipped'); }
 
-    // --- 智能动画 ---
     let ticking = false;
     function onScroll() {
         if (!ticking) {
