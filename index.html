@@ -7,11 +7,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal Glass</title>
+    <title>Coffee Journal Flow</title>
     <style>
         :root {
             --bg-color: #000000;
-            /* iPad Pro 11寸 黄金比例尺寸 */
             --card-width: 360px;
             --card-height: 580px;
             
@@ -19,7 +18,6 @@
             --roast-medium: #8D6E63;
             --roast-dark: #3E2723;
             
-            /* 玻璃态通用边框 */
             --glass-border: 1px solid rgba(255, 255, 255, 0.15);
             --glass-bg: rgba(30, 30, 30, 0.60);
         }
@@ -27,7 +25,6 @@
         body {
             margin: 0;
             background-color: var(--bg-color);
-            /* SF Pro 是 iOS 原生字体 */
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
             display: flex;
             justify-content: center;
@@ -40,12 +37,10 @@
             color: #fff;
         }
 
-        /* --- 布局容器 --- */
         .app-container {
             width: 100%;
             height: 100vh;
             position: relative;
-            /* 适配 iPad 状态栏，确保视觉居中 */
             padding-top: env(safe-area-inset-top); 
             box-sizing: border-box;
             display: flex;
@@ -53,38 +48,43 @@
             justify-content: center; 
         }
 
+        /* --- 滚动容器调整 --- */
         .card-scroller {
             display: flex;
-            gap: 50px; /* 增加间距，让每张卡片更独立 */
+            /* 减小间距，让3张卡片更容易同屏 */
+            gap: 30px; 
             overflow-x: auto;
-            padding: 0 50vw; 
+            /* 调整 padding，保证首尾卡片能居中，但平时允许左右卡片露出 */
+            padding: 0 calc(50vw - var(--card-width) / 2); 
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             width: 100%;
             height: 100%; 
-            align-items: center; /* 垂直居中核心 */
+            align-items: center;
         }
         .card-scroller::-webkit-scrollbar { display: none; }
-        .card-spacer { min-width: calc(50vw - var(--card-width)/2); }
+        
+        /* 占位符现在只需要很小，因为我们主要靠 padding 居中 */
+        .card-spacer { display: none; } 
 
-        /* --- 3D 容器 --- */
+        /* --- 卡片容器 --- */
         .card-wrapper {
             position: relative;
             flex: 0 0 var(--card-width);
             height: var(--card-height);
             scroll-snap-align: center;
-            perspective: 1500px; /* 更深邃的透视 */
+            perspective: 1500px;
             z-index: 1;
-            transform: scale(0.88);
-            opacity: 0.4;
-            transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.5s;
-            will-change: transform, opacity;
-        }
-
-        .card-wrapper.active {
+            /* 核心修改：默认就是全尺寸、不透明 */
             transform: scale(1);
             opacity: 1;
+            /* 移除过渡延迟，让 JS 驱动的滑动动画更跟手 */
+            will-change: transform;
+        }
+
+        /* 激活状态仅仅用于逻辑标记，不再负责视觉缩放 */
+        .card-wrapper.active {
             z-index: 10;
         }
 
@@ -95,43 +95,31 @@
             height: 100%;
             transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             transform-style: preserve-3d;
-            /* 移除 overflow hidden，为了让 Badge 突出去 */
         }
 
         .card-wrapper.flipped .card {
             transform: rotateY(180deg);
         }
 
-        /* --- 正反面通用 --- */
         .card-front, .card-back {
             position: absolute; width: 100%; height: 100%;
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
-            border-radius: 40px; /* iOS 风格的大圆角 */
-            box-sizing: border-box;
+            border-radius: 40px; box-sizing: border-box;
         }
 
-        /* --- 正面 --- */
         .card-front {
-            /* 允许子元素(Badge)溢出 */
-            overflow: visible; 
-            z-index: 2;
-            transform: rotateY(0deg);
-            /* 正面无背景色，完全由 mask 里的图片填充 */
+            overflow: visible; z-index: 2; transform: rotateY(0deg);
         }
 
-        /* 正面内容遮罩 (用来切圆角图片，但不切 Badge) */
         .front-mask {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            border-radius: 40px;
-            overflow: hidden;
-            background: #1a1a1a;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8); /* 深度阴影 */
-            border: var(--glass-border); /* 玻璃边框 */
+            border-radius: 40px; overflow: hidden; background: #1a1a1a;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            border: var(--glass-border);
         }
 
         .bg-image {
-            width: 100%; height: 100%; object-fit: cover;
-            transition: opacity 0.3s;
+            width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s;
         }
         
         .overlay-gradient {
@@ -140,40 +128,26 @@
             pointer-events: none;
         }
 
-        /* --- 悬浮 Badge (核心修改) --- */
+        /* Badge 悬浮在顶部 */
         .badge {
-            position: absolute;
-            top: -45px; /* 悬挂在外部 */
-            left: 50%;
-            transform: translateX(-50%);
+            position: absolute; top: -45px; left: 50%; transform: translateX(-50%);
             width: 90px; height: 90px;
-            
-            /* 磨砂玻璃效果 */
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            
-            border-radius: 50%;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 10;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            border: 2px solid rgba(255,255,255,0.5); /* 白色亮边 */
+            backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 50%; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; z-index: 10;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.5);
         }
-        
-        /* 邮票齿孔装饰 */
         .badge::after {
             content: ''; position: absolute; top: 4px; left: 4px; right: 4px; bottom: 4px;
             border: 1px dashed #999; border-radius: 50%; opacity: 0.5;
         }
-
         .badge span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #555; letter-spacing: 1px;}
         .badge strong { font-size: 15px; font-weight: 900; text-transform: uppercase; margin-top: 2px; color: #000; }
 
-        /* 文字内容 */
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* 让点击穿透给 mask */
-            z-index: 5;
+            pointer-events: none; z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 50px; align-items: center;
         }
         .card-content h2 { 
@@ -195,22 +169,13 @@
         .upload-btn:active { transform: scale(0.9); }
         .upload-btn svg { stroke: white; width: 20px; height: 20px; }
 
-        /* --- 背面 (iOS 玻璃态) --- */
         .card-back {
-            transform: rotateY(180deg);
-            z-index: 1;
-            /* 高级深色磨砂玻璃 */
+            transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
-            backdrop-filter: blur(40px) saturate(150%);
-            -webkit-backdrop-filter: blur(40px) saturate(150%);
-            border: var(--glass-border);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            
-            padding: 70px 35px 40px 35px;
-            display: flex; flex-direction: column;
-            color: white;
+            backdrop-filter: blur(40px) saturate(150%); -webkit-backdrop-filter: blur(40px) saturate(150%);
+            border: var(--glass-border); box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            padding: 70px 35px 40px 35px; display: flex; flex-direction: column; color: white;
         }
-
         .card-back h3 {
             text-align: center; font-size: 14px; letter-spacing: 3px; font-weight: 600;
             text-transform: uppercase; margin: 0 0 35px 0; color: rgba(255,255,255,0.7);
@@ -221,19 +186,13 @@
             display: block; font-size: 11px; text-transform: uppercase; 
             margin-bottom: 8px; color: rgba(255,255,255,0.5); font-weight: 600; letter-spacing: 1px;
         }
-        /* 玻璃态输入框 */
         .form-group input, .form-group textarea {
-            width: 100%; 
-            background: rgba(0, 0, 0, 0.2); 
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 16px; border-radius: 18px; 
-            color: #fff; outline: none; box-sizing: border-box; font-size: 17px; /* 17px防止iOS缩放 */
-            font-family: inherit;
-            transition: all 0.3s;
+            width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px; border-radius: 18px; color: #fff; outline: none; box-sizing: border-box; 
+            font-size: 17px; font-family: inherit; transition: all 0.3s;
         }
         .form-group input:focus, .form-group textarea:focus { 
-            background: rgba(0, 0, 0, 0.4); 
-            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.4); border-color: rgba(255, 255, 255, 0.3);
         }
         .form-group textarea { resize: none; height: 110px; line-height: 1.5; }
         
@@ -245,7 +204,6 @@
         }
         .btn-delete { background: rgba(255, 59, 48, 0.15); color: #FF453A; }
 
-        /* FAB */
         .fab-container {
             position: fixed; bottom: 40px; right: 40px; z-index: 100;
             display: flex; flex-direction: column; align-items: flex-end; gap: 15px;
@@ -257,7 +215,6 @@
             color: black; font-size: 36px; cursor: pointer; transition: transform 0.2s;
         }
         .fab-main:active { transform: scale(0.9); }
-        
         .roast-menu {
             display: none; background: rgba(30,30,30,0.9); padding: 12px; border-radius: 18px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.6); flex-direction: column; gap: 6px; 
@@ -287,10 +244,9 @@
 <div class="status-toast" id="statusToast">SAVED</div>
 
 <div class="app-container">
-    <div class="loading-text" id="loading">Initialising...</div>
+    <div class="loading-text" id="loading">Syncing...</div>
     <div class="card-scroller" id="scroller">
-        <div class="card-spacer"></div>
-        <div class="card-spacer"></div>
+        <!-- 无需 Spacer，依靠 padding 实现居中 -->
     </div>
 </div>
 
@@ -304,7 +260,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Glass';
+    const DB_NAME = 'CoffeeJournalDB_Final';
     const DB_VERSION = 1;
     const STORE_NAME = 'coffees';
     let db;
@@ -388,7 +344,7 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const maxDim = 1200; // iPad Pro 屏幕较大，稍微提高分辨率
+                    const maxDim = 1200; 
                     let width = img.width;
                     let height = img.height;
                     if (width > height) { if (width > maxDim) { height *= maxDim / width; width = maxDim; } } 
@@ -430,7 +386,7 @@
         } else {
             coffees.forEach(renderCard);
         }
-        requestAnimationFrame(updateScale);
+        requestAnimationFrame(animateCards);
     }
 
     function renderCard(coffee) {
@@ -444,15 +400,10 @@
         const initialSrc = imageCache.get(coffee.id) || '';
         const initialOpacity = initialSrc ? '1' : '0';
 
-        // 这里的结构变化了：Badge 移到了 card-front 内，但通过 CSS 悬挂出去
-        // 增加 front-mask 专门用来裁切图片
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <!-- Badge 悬挂在顶端 -->
                     <div class="badge"><span>Roast</span><strong>${coffee.roast}</strong></div>
-                    
-                    <!-- 包含图片和遮罩的容器 -->
                     <div class="front-mask">
                         <label class="upload-btn" onclick="event.stopPropagation()">
                             <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${coffee.id})">
@@ -497,8 +448,7 @@
             }
         };
 
-        const spacers = scroller.querySelectorAll('.card-spacer');
-        scroller.insertBefore(wrapper, spacers[spacers.length-1]);
+        scroller.appendChild(wrapper);
         cardObserver.observe(wrapper);
     }
 
@@ -540,33 +490,37 @@
             cardObserver.unobserve(wrapper);
             wrapper.style.opacity = '0';
             wrapper.style.transform = 'scale(0.5)';
-            setTimeout(() => { wrapper.remove(); updateScale(); }, 300);
+            setTimeout(() => { wrapper.remove(); animateCards(); }, 300);
         }
     }
 
     function flipCard(btn) { btn.closest('.card-wrapper').classList.remove('flipped'); }
 
+    // --- 动态滑动效果 (核心逻辑) ---
+    // 只有在滑动时，卡片才会根据位置产生倾斜效果，静止时保持平整
     let ticking = false;
     function onScroll() {
         if (!ticking) {
-            window.requestAnimationFrame(() => { updateScale(); ticking = false; });
+            window.requestAnimationFrame(() => { animateCards(); ticking = false; });
             ticking = true;
         }
     }
 
-    function updateScale() {
+    function animateCards() {
         const cards = document.querySelectorAll('.card-wrapper');
         const scrollerRect = scroller.getBoundingClientRect();
         const centerPoint = scrollerRect.left + scrollerRect.width / 2;
 
-        for (let i = 0; i < cards.length; i++) {
-            const card = cards[i];
+        cards.forEach(card => {
             const rect = card.getBoundingClientRect();
-            if (rect.right < -100 || rect.left > window.innerWidth + 100) continue;
+            // 优化：屏幕外的卡片不计算
+            if (rect.right < -50 || rect.left > window.innerWidth + 50) return;
+
             const cardCenter = rect.left + rect.width / 2;
-            const distance = Math.abs(centerPoint - cardCenter);
+            const dist = cardCenter - centerPoint; // 距离中心的距离
             
-            if (distance < 160) {
+            // 逻辑判断：是否激活（用于翻转逻辑）
+            if (Math.abs(dist) < 180) {
                 if (!card.classList.contains('active')) card.classList.add('active');
             } else {
                 if (card.classList.contains('active')) {
@@ -574,7 +528,19 @@
                     if (card.classList.contains('flipped')) card.classList.remove('flipped');
                 }
             }
-        }
+
+            // 视觉特效：根据距离产生轻微的 Y 轴旋转，模拟卡片跟随手指拖动的物理感
+            // 距离越远，倾斜角度越大，最大 15度
+            const rotateY = dist / 25; 
+            
+            // 只有正在翻转的卡片不要动特效，否则会穿帮
+            if (!card.classList.contains('flipped')) {
+                // 使用 matrix3d 或 perspective 增强性能
+                card.style.transform = `perspective(1000px) rotateY(${rotateY}deg) scale(1)`;
+            } else {
+                 card.style.transform = `perspective(1000px) scale(1)`; // 翻转时保持平整
+            }
+        });
     }
 
     scroller.addEventListener('scroll', onScroll, { passive: true });
