@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal Perfect</title>
+    <title>Coffee Journal Final V9</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -51,7 +51,6 @@
             padding: 0;
         }
 
-        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
             gap: 24px;
@@ -75,7 +74,6 @@
             width: calc(50vw - var(--card-width) / 2);
         }
 
-        /* --- 卡片容器 --- */
         .card-wrapper {
             position: relative;
             flex: 0 0 var(--card-width);
@@ -90,7 +88,6 @@
         }
         .card-wrapper.active { z-index: 100; }
 
-        /* --- 卡片本体 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -104,7 +101,6 @@
             border-radius: 40px; box-sizing: border-box;
         }
 
-        /* --- 正面 --- */
         .card-front {
             overflow: hidden; z-index: 2; transform: rotateY(0deg);
             background: #121212;
@@ -114,12 +110,21 @@
 
         .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
         
+        /* 核心优化：更柔和、自然的渐变模糊 */
         .overlay-gradient {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 35%;
-            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.9) 100%);
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
-            mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; /* 稍微加高一点，让过渡空间更足 */
+            
+            /* 背景渐变：从透明到深黑，更加平滑 */
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.85) 100%);
+            
+            /* 模糊减半：15px -> 8px */
+            backdrop-filter: blur(8px); 
+            -webkit-backdrop-filter: blur(8px);
+            
+            /* 遮罩渐变：拉长过渡区间 (0% -> 80%)，消除分界线 */
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 80%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 80%);
+            
             z-index: 1; pointer-events: none;
         }
 
@@ -139,7 +144,6 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase; 
         }
 
-        /* 上传按钮 */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 44px; height: 44px; background: transparent; border: none;
@@ -150,7 +154,6 @@
         .upload-btn:hover { opacity: 0.8; }
         .upload-btn svg { stroke: white; width: 24px; height: 24px; stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));}
 
-        /* --- 背面 (参数面板) --- */
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
@@ -163,7 +166,7 @@
         }
 
         .title-input-group {
-            margin-bottom: 40px; text-align: center;
+            margin-bottom: 30px; text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             padding-bottom: 15px;
         }
@@ -174,9 +177,9 @@
         }
         .title-input::placeholder { color: rgba(255,255,255,0.3); }
 
-        /* --- 参数列表布局 (严格对齐修正版) --- */
         .data-list {
             display: flex; flex-direction: column; gap: 0; width: 100%;
+            margin-bottom: 20px; 
         }
 
         .data-row {
@@ -185,38 +188,37 @@
             border-bottom: 1px solid rgba(255,255,255,0.08);
             height: 24px;
         }
-        .data-row:last-child { border-bottom: none; }
-
+        
         .data-label {
             font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px;
         }
 
-        /* 关键修复：数值区域容器化 */
         .data-value-group {
             display: flex; 
             align-items: center; 
-            justify-content: flex-end; /* 内容靠右 */
-            width: 140px; /* 固定宽度，确保上下对齐的基准线一致 */
+            justify-content: flex-end; 
+            width: 140px; 
         }
 
         .data-input {
-            flex: 1; /* 占满剩余空间，把单位挤到最右边 */
+            flex: 1; 
             background: transparent; border: none;
             text-align: right; 
             color: white; font-size: 20px; font-weight: 600;
             outline: none; 
             font-family: "SF Pro Display", -apple-system, sans-serif;
-            font-variant-numeric: tabular-nums; /* 等宽数字 */
-            padding: 0; margin: 0; /* 移除默认边距 */
+            font-variant-numeric: tabular-nums; 
+            padding: 0; margin: 0;
         }
         .data-input::placeholder { color: rgba(255,255,255,0.2); }
         
         .data-unit {
             font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
-            width: 24px; /* 固定单位区域宽度 */
-            text-align: left; /* 单位文字左对齐 */
-            padding-left: 6px; /* 数值和单位的间距 */
-            flex-shrink: 0; /* 防止单位被挤压 */
+            width: 25px; 
+            text-align: right; /* 单位右对齐 */
+            padding-left: 0;
+            margin-left: 5px; 
+            flex-shrink: 0; 
         }
 
         .action-row { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
@@ -227,7 +229,6 @@
         }
         .btn-delete { background: rgba(255, 69, 58, 0.1); color: #FF453A; }
 
-        /* --- “添加”卡片 --- */
         .card-add {
             background: rgba(255,255,255,0.02);
             border: 1px dashed rgba(255,255,255,0.15);
@@ -282,7 +283,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V4'; // Version update
+    const DB_NAME = 'CoffeeJournalDB_Pro_V9'; // V9 Update
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
@@ -346,7 +347,7 @@
                 powder: '18', 
                 liquid: '36', 
                 time: '25',   
-                grind: '',    
+                grind: '2.0', // Default Value
                 roast: roastType, 
                 imageData: null, 
                 created: Date.now()
@@ -447,6 +448,8 @@
         const initialSrc = imageCache.get(coffee.id) || '';
         const initialOpacity = initialSrc ? '1' : '0';
 
+        const grindValue = (coffee.grind === undefined || coffee.grind === null) ? '2.0' : coffee.grind;
+
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
@@ -492,7 +495,7 @@
                         <div class="data-row">
                             <span class="data-label">研磨度</span>
                             <div class="data-value-group">
-                                <input class="data-input" type="text" value="${coffee.grind || ''}" oninput="handleInput(${coffee.id}, 'grind', this.value)">
+                                <input class="data-input" type="number" step="0.1" value="${grindValue}" oninput="handleInput(${coffee.id}, 'grind', this.value)">
                                 <span class="data-unit">m</span>
                             </div>
                         </div>
