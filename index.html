@@ -2,14 +2,14 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 视口设置 -->
+    <!-- 视口设置：禁止缩放，覆盖全屏 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V13 Optical Center</title>
+    <title>Coffee Journal V14 Absolute Center</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -30,40 +30,38 @@
             inherits: false;
         }
 
-        body {
-            margin: 0;
+        /* 重置 */
+        html, body {
+            margin: 0; padding: 0;
             background-color: var(--bg-color);
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100dvh; 
-            width: 100vw;
+            width: 100%; 
+            height: 100dvh; /* 关键：使用动态视口高度，忽略浏览器栏影响 */
             overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
+            user-select: none; -webkit-user-select: none;
             -webkit-font-smoothing: antialiased;
             color: #fff;
         }
 
-        /* --- 布局调整：光学视觉居中 --- */
+        /* --- 核心布局：绝对几何居中 --- */
         .app-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
+            /* 使用 Fixed 布局强制占满物理屏幕 */
+            position: fixed;
+            inset: 0; 
+            z-index: 1;
+            
+            /* Flex 居中大法 */
             display: flex;
             flex-direction: column;
-            justify-content: center; 
-            align-items: center;
-            /* 
-               关键修改：底部增加 50px 填充。
-               在 Flex 居中布局下，这会将内容整体向上推约 25px。
-               正好抵消顶部状态栏带来的视觉下沉感。
-            */
-            padding-bottom: 50px; 
-            box-sizing: border-box;
+            justify-content: center; /* 垂直居中 */
+            align-items: center;     /* 水平居中 */
+            
+            /* 关键：移除所有 Padding，不进行任何人为干预 */
+            padding: 0;
+            margin: 0;
         }
 
+        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
             gap: 24px;
@@ -71,10 +69,16 @@
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
+            
+            /* 宽度占满，高度由内容决定 */
             width: 100%;
-            height: 100%; 
-            align-items: center;
-            padding: 0; 
+            height: auto; 
+            min-height: var(--card-height); /* 确保高度足够 */
+            
+            /* 确保内部卡片垂直居中 */
+            align-items: center; 
+            padding: 0;
+            
             will-change: scroll-position;
         }
         .card-scroller::-webkit-scrollbar { display: none; }
@@ -102,6 +106,7 @@
         }
         .card-wrapper.active { z-index: 100; }
 
+        /* --- 卡片结构 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -117,7 +122,7 @@
             box-shadow: var(--glass-shadow);
         }
 
-        /* --- 呼吸流光 (保持微弱高级感) --- */
+        /* --- 呼吸流光特效 (保持微弱) --- */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -167,13 +172,11 @@
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
-            backdrop-filter: blur(50px) saturate(180%);
-            -webkit-backdrop-filter: blur(50px) saturate(180%);
+            backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%);
             padding: 50px 30px; 
             display: flex; flex-direction: column; color: white;
         }
 
-        /* 标题垂直居中修正 */
         .title-input-group {
             margin-bottom: 30px; text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -204,6 +207,7 @@
         }
         .data-input::placeholder { color: rgba(255,255,255,0.2); }
         
+        /* 完美对齐的右对齐单位 */
         .data-unit {
             font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
             width: 25px; text-align: right; padding-left: 0; margin-left: 5px; flex-shrink: 0; 
@@ -272,7 +276,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V13'; // V13 Update
+    const DB_NAME = 'CoffeeJournalDB_Pro_V14'; // V14
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
