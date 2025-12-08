@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V42 Stable</title>
+    <title>BeanDance V43 Stable Core</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -64,14 +64,10 @@
             padding: 0; 
             
             will-change: scroll-position;
-            
-            /* 初始状态：透明 */
             opacity: 0; 
             transition: opacity 0.5s ease-out;
         }
-        /* JS 激活此状态显示内容 */
         .card-scroller.visible { opacity: 1; }
-        
         .card-scroller::-webkit-scrollbar { display: none; }
 
         .card-scroller::before,
@@ -133,15 +129,17 @@
 
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            pointer-events: none; z-index: 5;
+            z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; 
             padding-bottom: 50px; align-items: center; text-align: center;
+            pointer-events: none;
         }
+        .card-content input { pointer-events: auto; }
 
         /* 品牌信息 */
         .app-brand-title-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 0; text-align: center; width: 100%; pointer-events: auto;
+            font-family: inherit; margin: 0; text-align: center; width: 100%; 
             font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px; margin-bottom: 2px;
             background: linear-gradient(135deg, #fff 0%, #dcdcdc 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -149,7 +147,7 @@
         }
         .app-brand-author-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 6px 0 20px 0; text-align: center; width: 100%; pointer-events: auto;
+            font-family: inherit; margin: 6px 0 20px 0; text-align: center; width: 100%; 
             font-size: 10px; letter-spacing: 6px; font-weight: 600; margin-top: 4px; margin-bottom: 30px;
             color: rgba(255,255,255,0.5); text-transform: uppercase; caret-color: #fff;
         }
@@ -157,29 +155,33 @@
         .card-content h2 { 
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
             line-height: 1.1; letter-spacing: -0.5px;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
         .card-content p { 
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
-            color: rgba(255,255,255,0.7); text-transform: uppercase; pointer-events: none;
+            color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* 智能上传按钮 */
+        /* 智能上传按钮 (无背景，点击热区) */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
-            width: 48px; height: 48px; 
-            background: rgba(0,0,0,0.3); backdrop-filter: blur(10px); border-radius: 50%;
+            width: 50px; height: 50px; 
+            background: transparent; border: none;
             display: flex; justify-content: center; align-items: center; z-index: 20;
-            cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer; transition: all 0.3s ease;
             pointer-events: auto;
+            opacity: 0.4;
         }
-        .upload-btn svg { stroke: white; width: 22px; height: 22px; stroke-width: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));}
+        .upload-btn svg { 
+            stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+        }
 
-        /* 状态: 有图片时隐藏 */
-        .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(0.9); border-color: transparent; background: transparent; }
-        /* 状态: 激活显示时 */
-        .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); background: rgba(0,0,0,0.6); border-color: rgba(255,255,255,0.3); }
+        /* 状态: 有图片时 -> 隐形 (Opacity 0) */
+        .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(1); }
+        
+        /* 状态: 激活显示时 (Reveal) -> 显现 */
+        .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); }
 
         .card-back {
             transform: rotateY(180deg); z-index: 1;
@@ -259,6 +261,7 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* 搜索栏样式 */
         .search-bar-wrapper {
             display: flex; align-items: center; justify-content: center; margin-top: 10px;
             opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
@@ -280,43 +283,33 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        
-        #error-layer {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: #000; color: #ff5555; z-index: 10000;
-            display: none; justify-content: center; align-items: center; font-family: monospace; padding: 20px;
-        }
     </style>
 </head>
 <body>
 
 <div class="status-toast" id="statusToast">SAVED</div>
-<div id="error-layer"></div>
 
 <div class="app-container">
     <div class="card-scroller" id="scroller"></div>
 </div>
 
 <script>
-    // --- Constants ---
-    const DB_NAME = 'BeanDance_V42_Stable'; 
+    const DB_NAME = 'BeanDance_V43_Stable'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
     const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
     
-    // --- State ---
     let db;
     let allCoffeesCache = [];
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
-    let debounceTimer;
+    let debounceMap = new Map(); // Fix: Independent debounce timers
     let revealTimer; 
+    let isAnimating = false;
     
-    // --- UI Refs ---
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
-    const errorLayer = document.getElementById('error-layer');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -324,12 +317,7 @@
         setTimeout(() => toast.style.opacity = '0', 1500);
     }
 
-    function showError(msg) {
-        errorLayer.style.display = 'flex';
-        errorLayer.innerText = "Error: " + msg + ". Please refresh.";
-    }
-
-    // --- Database ---
+    // --- DB ---
     function initDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -352,45 +340,48 @@
         });
     }
 
-    function saveToDB(id, data) {
-        try {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            
-            // 安全克隆数据，防止引用污染
-            const safeData = structuredClone(data);
-
-            if (id === METADATA_ID || id === SEARCH_BG_ID) {
-                store.get(id).onsuccess = (e) => {
-                    const record = e.target.result;
-                    if(record) store.put({ ...record, ...safeData }).onsuccess = () => showToast('SAVED');
-                    else store.add({ id: id, ...safeData }).onsuccess = () => showToast('SAVED');
-                };
-            } else {
-                store.put(safeData).onsuccess = () => showToast('SAVED');
-            }
-        } catch(e) {
-            console.error("Save failed", e);
-        }
+    // --- Fix: Independent Debounce per ID ---
+    function scheduleSave(key, fn) {
+        if (debounceMap.has(key)) clearTimeout(debounceMap.get(key));
+        const timer = setTimeout(() => {
+            fn();
+            debounceMap.delete(key);
+            showToast('SAVED');
+        }, 500);
+        debounceMap.set(key, timer);
     }
 
-    // --- Business Logic ---
     function updateMetadata(field, value) {
         appMetadata[field] = value;
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
+        scheduleSave('meta', () => {
             saveToDB(METADATA_ID, appMetadata);
-        }, 500);
+        });
     }
 
     function updateCoffee(id, field, value) {
         const item = allCoffeesCache.find(c => c.id === id);
         if (item) {
             item[field] = value;
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
+            scheduleSave(`coffee-${id}`, () => {
                 saveToDB(id, item);
-            }, 500);
+            });
+        }
+    }
+
+    function saveToDB(id, data) {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        // Fix: No structuredClone needed for IndexedDB put, safer for compat
+        const payload = { ...data }; 
+        
+        if (id === METADATA_ID || id === SEARCH_BG_ID) {
+            store.get(id).onsuccess = (e) => {
+                const record = e.target.result;
+                if(record) store.put({ ...record, ...payload });
+                else store.add({ id: id, ...payload });
+            };
+        } else {
+            store.put(payload);
         }
     }
 
@@ -407,7 +398,6 @@
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
             
-            // Reset Add Menu
             const addCard = document.querySelector('.card-add');
             if(addCard) {
                 addCard.querySelector('.add-menu').classList.remove('show');
@@ -417,6 +407,7 @@
     }
 
     async function deleteCard(id) {
+        // Fix: Confirm handled by event listener
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
             allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
@@ -436,24 +427,22 @@
         processImage(file).then(blob => {
             if (id === SEARCH_BG_ID) {
                 saveToDB(SEARCH_BG_ID, { imageData: blob });
-                // Update Search Card Image
-                const img = document.querySelector('#search-wrapper .bg-image');
-                const wrapper = document.querySelector('#search-wrapper');
+                // Update UI
+                const wrapper = document.getElementById('search-wrapper');
+                const img = wrapper.querySelector('.bg-image');
                 if(img) {
                     if(img.src) URL.revokeObjectURL(img.src);
                     img.src = URL.createObjectURL(blob);
                     img.style.opacity = 1;
-                    if(wrapper) {
-                        wrapper.classList.add('has-image');
-                        wrapper.classList.remove('reveal-icon');
-                    }
+                    wrapper.classList.add('has-image');
+                    wrapper.classList.remove('reveal-icon');
                 }
             } else {
                 const item = allCoffeesCache.find(c => c.id === id);
                 if(item) {
                     item.imageData = blob;
-                    saveToDB(id, item);
-                    // Update Coffee Card Image
+                    saveToDB(id, item); // Immediate save
+                    
                     const wrapper = document.querySelector(`.card-wrapper[data-id="${id}"]`);
                     if(wrapper) {
                         const img = wrapper.querySelector('.bg-image');
@@ -467,6 +456,7 @@
                     }
                 }
             }
+            showToast('SAVED');
         });
     }
 
@@ -492,12 +482,11 @@
         });
     }
 
-    // --- Setup & Render ---
+    // --- UI Logic ---
     function setupDelegation() {
-        scroller.addEventListener('click', (e) => {
+        scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // 1. Add Button
             const addCard = t.closest('.card-add');
             if (addCard) {
                 const menu = addCard.querySelector('.add-menu');
@@ -517,79 +506,77 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // 2. Upload Button (Smart Interaction)
+            // Smart Upload Interaction
             if (t.closest('.upload-btn')) {
-                // If has image and NOT revealed -> Reveal it
-                if (wrapper.classList.contains('has-image') && !wrapper.classList.contains('reveal-icon')) {
-                    e.preventDefault(); 
-                    wrapper.classList.add('reveal-icon');
-                    // Remove other reveals
-                    document.querySelectorAll('.reveal-icon').forEach(el => {
-                        if(el !== wrapper) el.classList.remove('reveal-icon');
-                    });
-                    
-                    if (revealTimer) clearTimeout(revealTimer);
-                    revealTimer = setTimeout(() => wrapper.classList.remove('reveal-icon'), 2000);
-                    return;
+                if (wrapper.classList.contains('has-image')) {
+                    if (wrapper.classList.contains('reveal-icon')) {
+                        return; // Let file dialog open
+                    } else {
+                        e.preventDefault(); 
+                        wrapper.classList.add('reveal-icon');
+                        // Clear others
+                        document.querySelectorAll('.reveal-icon').forEach(el => {
+                            if(el !== wrapper) el.classList.remove('reveal-icon');
+                        });
+                        
+                        if (revealTimer) clearTimeout(revealTimer);
+                        revealTimer = setTimeout(() => wrapper.classList.remove('reveal-icon'), 2000);
+                        return;
+                    }
                 }
-                // Else (No image OR Revealed) -> Allow file dialog
                 return; 
             }
 
-            // 3. Block Inputs
             if (t.closest('input')) return;
 
-            // 4. Delete & Done
             if (t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
-                if (confirm('Delete?')) deleteCard(id);
+                if (confirm('Delete this card?')) deleteCard(id); // Single confirm
                 return;
             }
+
             if (t.closest('.btn-done')) {
                 wrapper.classList.remove('flipped');
                 return;
             }
 
-            // 5. Flip Logic
             if (!t.closest('.card-back')) {
-                // Only flip if active
-                if (wrapper.classList.contains('active')) {
-                     wrapper.classList.toggle('flipped');
-                } else {
-                    wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
-                }
+                // Search card doesn't flip
+                if (wrapper.id === 'search-wrapper') return;
+
+                if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
+                else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
         });
 
-        // Inputs
         scroller.addEventListener('input', (e) => {
-            const t = e.target;
-            const wrapper = t.closest('.card-wrapper');
+            const input = e.target;
+            const wrapper = input.closest('.card-wrapper');
             if(!wrapper) return;
 
-            if (t.classList.contains('search-input-inline')) {
-                handleSearch(t.value);
+            if (input.classList.contains('search-input-inline')) {
+                handleSearch(input.value);
                 return;
             }
-            if (t.classList.contains('app-brand-title-input')) return updateMetadata('title', t.value);
-            if (t.classList.contains('app-brand-author-input')) return updateMetadata('author', t.value);
+
+            if (input.classList.contains('app-brand-title-input')) return updateMetadata('title', input.value);
+            if (input.classList.contains('app-brand-author-input')) return updateMetadata('author', input.value);
 
             const id = parseInt(wrapper.dataset.id);
             if(id > 0) {
-                if(t.classList.contains('title-input')) {
-                    wrapper.querySelector('h2').innerText = t.value;
-                    updateCoffee(id, 'name', t.value);
-                } else if(t.dataset.field) {
-                    updateCoffee(id, t.dataset.field, t.value);
+                if(input.classList.contains('title-input')) {
+                    wrapper.querySelector('h2').innerText = input.value;
+                    updateCoffee(id, 'name', input.value);
+                } else if(input.dataset.field) {
+                    updateCoffee(id, input.dataset.field, input.value);
                 }
             }
         });
 
-        // File Change
         scroller.addEventListener('change', (e) => {
             if(e.target.type === 'file') {
                 const wrapper = e.target.closest('.card-wrapper');
-                const id = parseInt(wrapper.getAttribute('data-id'));
+                const id = parseInt(wrapper.dataset.id);
                 handleImageUpload(e, id);
             }
         });
@@ -600,33 +587,39 @@
             await initDB();
             const allData = await getAllCoffees();
             
-            // Meta
             const meta = allData.find(c => c.id === METADATA_ID);
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
             
-            // Search BG
             const searchData = allData.find(c => c.id === SEARCH_BG_ID);
-            
-            // Cards
             allCoffeesCache = allData.filter(c => c.id > 0);
-
+            
             scroller.innerHTML = '';
             renderSearchCard(searchData);
             allCoffeesCache.forEach(c => renderSingleCard(c));
             renderAddButton();
 
-            // Initial Scroll (Silent)
-            if (allCoffeesCache.length >= 0) scroller.scrollLeft = CARD_FULL_WIDTH;
-
-            // Failsafe Visible (Anti-Black-Screen)
-            setTimeout(() => scroller.classList.add('visible'), 300);
+            // Initial Scroll Logic (Silent)
+            if (allCoffeesCache.length >= 0) {
+                scroller.scrollLeft = CARD_FULL_WIDTH;
+            }
+            
+            // Failsafe Render
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    scroller.classList.add('visible');
+                    // Fix: Singleton Animation Loop
+                    if (!isAnimating) animateCards(); 
+                });
+            });
 
             setupDelegation();
-            requestAnimationFrame(animateCards);
+            
+            // Fallback
+            setTimeout(() => scroller.classList.add('visible'), 500);
 
         } catch (e) {
             console.error(e);
-            showError(e.message);
+            alert("Init Error");
         }
     }
 
@@ -641,6 +634,8 @@
                 card.style.display = match ? 'block' : 'none';
             }
         });
+        // Trigger re-layout
+        // requestAnimationFrame(animateCards) is already running in loop
     }
 
     function renderSearchCard(data) {
@@ -657,7 +652,7 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
                     <div class="card-content">
@@ -688,7 +683,7 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
                     <div class="card-content">
@@ -737,9 +732,8 @@
         scroller.appendChild(wrapper);
     }
 
-    // Animation Loop
     function animateCards() {
-        const center = scroller.scrollLeft + scroller.clientWidth / 2;
+        isAnimating = true;
         const wrappers = scroller.children;
         const buffer = 450;
         
@@ -752,7 +746,7 @@
 
             const cardCenter = rect.left + rect.width / 2;
             const dist = Math.abs(window.innerWidth/2 - cardCenter);
-            
+
             if (card.id === 'search-wrapper') {
                 if (dist > 50) {
                     const r = (dist - 50) / 350;
