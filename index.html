@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance by CAIMAN</title>
+    <title>BeanDance V30 Clean</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -63,13 +63,15 @@
             padding: 0; 
             will-change: scroll-position;
 
-            /* 初始隐身 */
-            opacity: 0; 
-            transition: opacity 0.4s ease-out; 
+            /* 初始隐身，防止位置跳动被肉眼捕捉 */
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
         }
-        .card-scroller.active-view { opacity: 1; }
+        /* 数据就绪且位置修正后，添加此 visible 类 */
+        .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
 
+        /* 伪元素占位：确保首尾卡片能居中 */
         .card-scroller::before,
         .card-scroller::after {
             content: '';
@@ -109,6 +111,7 @@
             box-shadow: var(--glass-shadow);
         }
 
+        /* 呼吸流光特效 */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -131,56 +134,37 @@
 
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            pointer-events: none; z-index: 5;
+            z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; 
             padding-bottom: 50px; align-items: center; text-align: center;
         }
-        
-        /* 品牌标题样式 (BeanDance) */
-        .app-brand-title {
-            margin: 0; font-size: 38px; font-weight: 800; color: #fff;
+
+        /* 品牌标题样式 */
+        .app-brand-title-input {
+            background: transparent; border: none; outline: none;
+            font-family: inherit; margin: 0; text-align: center; width: 100%;
+            font-size: 38px; font-weight: 800; 
             line-height: 1; letter-spacing: -1px;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            /* 微弱的金属质感渐变 */
             background: linear-gradient(135deg, #fff 0%, #dcdcdc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3); caret-color: #fff;
         }
-        /* 作者署名样式 (by CAIMAN) */
-        .app-brand-author {
-            margin: 6px 0 20px 0; font-size: 10px; letter-spacing: 4px; font-weight: 600;
-            color: rgba(255,255,255,0.5); text-transform: uppercase; 
+        .app-brand-author-input {
+            background: transparent; border: none; outline: none;
+            font-family: inherit; margin: 6px 0 20px 0; text-align: center; width: 100%;
+            font-size: 10px; letter-spacing: 4px; font-weight: 600;
+            color: rgba(255,255,255,0.5); text-transform: uppercase; caret-color: #fff;
         }
 
         .card-content h2 { 
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
             line-height: 1.1; letter-spacing: -0.5px;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none;
         }
         .card-content p { 
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
-            color: rgba(255,255,255,0.7); text-transform: uppercase; 
+            color: rgba(255,255,255,0.7); text-transform: uppercase; pointer-events: none;
         }
-
-        /* 搜索栏样式融合 */
-        .search-bar-wrapper {
-            display: flex; align-items: center; justify-content: center;
-            margin-top: 10px;
-            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
-        }
-        .search-bar-wrapper:focus-within { opacity: 1; }
-        
-        .search-icon-small {
-            width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px;
-        }
-        .search-input-inline {
-            background: transparent; border: none; outline: none;
-            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
-            text-transform: uppercase; width: 120px;
-            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
-            text-align: center; padding-bottom: 4px;
-        }
-        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
 
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
@@ -276,6 +260,24 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
+
+        /* 搜索栏样式融合 */
+        .search-bar-wrapper {
+            display: flex; align-items: center; justify-content: center; margin-top: 10px;
+            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
+        }
+        .search-bar-wrapper:focus-within { opacity: 1; }
+        .search-icon-small {
+            width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px;
+        }
+        .search-input-inline {
+            background: transparent; border: none; outline: none;
+            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
+            text-transform: uppercase; width: 120px;
+            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
+            text-align: center; padding-bottom: 4px;
+        }
+        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
     </style>
 </head>
 <body>
@@ -289,13 +291,15 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V28'; 
+    const DB_NAME = 'BeanDance_V30'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
-    const SEARCH_BG_ID = 0; 
+    const SEARCH_BG_ID = 0;
+    const METADATA_ID = -1; 
     let db;
     let imageCache = new Map();
     let allCoffeesCache = [];
+    let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     let debounceTimer; 
 
     function showToast(msg) {
@@ -329,6 +333,23 @@
             const store = tx.objectStore(STORE_NAME);
             store.getAll().onsuccess = (e) => resolve(e.target.result);
         });
+    }
+
+    function updateMetadata(field, value) {
+        appMetadata[field] = value;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            store.get(METADATA_ID).onsuccess = (e) => {
+                const record = e.target.result;
+                if(record) {
+                    store.put({ ...record, ...appMetadata }).onsuccess = () => showToast('SAVED');
+                } else {
+                    store.add({ id: METADATA_ID, ...appMetadata }).onsuccess = () => showToast('SAVED');
+                }
+            };
+        }, 500);
     }
 
     function updateCoffee(id, data) {
@@ -456,14 +477,19 @@
                 imageCache.set(SEARCH_BG_ID, searchBgData.imageData);
             }
 
-            allCoffeesCache = allData.filter(c => c.id !== SEARCH_BG_ID);
+            const metaData = allData.find(c => c.id === METADATA_ID);
+            if (metaData) {
+                appMetadata.title = metaData.title || 'BeanDance';
+                appMetadata.author = metaData.author || 'by CAIMAN';
+            }
+
+            allCoffeesCache = allData.filter(c => c.id !== SEARCH_BG_ID && c.id !== METADATA_ID);
             
             renderCardList(allCoffeesCache, true); 
             
             requestAnimationFrame(animateCards);
         } catch (error) {
             console.error(error);
-            alert("Database Error. Please clear Safari cache.");
         }
     }
 
@@ -473,7 +499,7 @@
         
         cards.forEach(card => {
             const id = parseInt(card.getAttribute('data-id'));
-            if (id === SEARCH_BG_ID) return;
+            if (id === SEARCH_BG_ID || id === METADATA_ID) return;
 
             const data = allCoffeesCache.find(c => c.id === id);
             if (!data) return;
@@ -492,19 +518,20 @@
         scroller.innerHTML = '';
         renderSearchCard();
         list.forEach(renderCard); 
-        renderAddButton();
+        renderAddButton(); // 确保添加按钮始终在最后
         
         if (isInitialLoad) {
-            // 360 + 24 = 384
+            // 360(W) + 24(Gap) = 384px (Position of first data card)
             scroller.scrollLeft = 384; 
             
+            // 无缝显现
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    scroller.classList.add('active-view');
+                    scroller.classList.add('visible');
                 });
             });
         } else {
-            scroller.classList.add('active-view');
+            scroller.classList.add('visible');
         }
     }
 
@@ -520,7 +547,6 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <!-- 封面上传 -->
                     <label class="upload-btn" onclick="event.stopPropagation()">
                         <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${SEARCH_BG_ID})">
                         <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
@@ -529,9 +555,8 @@
                     <div class="overlay-gradient"></div>
                     
                     <div class="card-content">
-                        <!-- 品牌植入 -->
-                        <h1 class="app-brand-title">BeanDance</h1>
-                        <p class="app-brand-author">by CAIMAN</p>
+                        <input type="text" class="app-brand-title-input" value="${appMetadata.title}" oninput="updateMetadata('title', this.value)">
+                        <input type="text" class="app-brand-author-input" value="${appMetadata.author}" oninput="updateMetadata('author', this.value)">
 
                         <div class="search-bar-wrapper">
                             <svg class="search-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -625,6 +650,7 @@
             }
         };
 
+        // 插入逻辑：在添加按钮前插入
         const addBtn = document.getElementById('add-card-wrapper');
         if(addBtn) {
             scroller.insertBefore(wrapper, addBtn);
@@ -674,11 +700,14 @@
         icon.style.display = 'block';
 
         const newCoffee = await addCoffee(roast);
-        renderCard(newCoffee); 
+        // 使用单卡片渲染，而非重绘全表，保持位置稳定
+        renderCard(newCoffee);
         
         setTimeout(() => {
             const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
+            // 滚动到新插入的卡片 (add-card-wrapper 之前的那个)
             if(cards.length > 0) {
+                // 因为 Search 卡片在第一个，所以 cards 里的最后一个就是新插入的
                 cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', inline: 'center' });
             }
         }, 100);
@@ -705,7 +734,9 @@
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
-            renderCardList(allCoffeesCache);
+            // 移除 DOM
+            const card = document.querySelector(`.card-wrapper[data-id="${id}"]`);
+            if(card) card.remove();
         }
     }
 
@@ -745,7 +776,6 @@
                 return;
             }
 
-            // 其他卡片特效
             const enableEffect = cards.length > 6; 
             if (!enableEffect) {
                 card.style.transform = 'scale(1)';
