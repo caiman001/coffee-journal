@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V46 Production Golden Master</title>
+    <title>BeanDance V46 Rescue</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -66,10 +66,10 @@
             
             will-change: scroll-position;
             
-            opacity: 0; 
-            transition: opacity 0.6s ease-out;
+            opacity: 0; /* 初始状态 */
+            transition: opacity 0.5s ease-out;
         }
-        .card-scroller.visible { opacity: 1; }
+        .card-scroller.visible { opacity: 1; } /* 激活状态 */
         .card-scroller::-webkit-scrollbar { display: none; }
 
         .card-scroller::before,
@@ -140,17 +140,20 @@
         /* 品牌排版 */
         .app-brand-title-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 0 0 2px 0; text-align: center; width: 100%;
+            font-family: inherit; width: 100%; text-align: center; padding: 0;
             font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px;
+            margin: 0 0 2px 0; 
             background: linear-gradient(135deg, #fff 0%, #dcdcdc 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 4px 20px rgba(0,0,0,0.3); caret-color: #fff;
         }
         .app-brand-author-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 4px 0 30px 0; text-align: center; width: 100%;
+            font-family: inherit; width: 100%; text-align: center; padding: 0;
             font-size: 10px; font-weight: 600; letter-spacing: 6px; 
-            color: rgba(255,255,255,0.5); text-transform: uppercase; caret-color: #fff;
+            text-transform: uppercase; color: rgba(255,255,255,0.5);
+            margin: 4px 0 30px 0; 
+            caret-color: #fff;
         }
 
         .card-content h2 { 
@@ -163,7 +166,7 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* 智能上传按钮 (无衬底) */
+        /* 上传按钮 */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
@@ -179,10 +182,7 @@
             transition: transform 0.2s;
         }
         .upload-btn:active svg { transform: scale(0.9); }
-
-        /* 状态: 有图片时 -> 隐形 */
         .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(1); }
-        /* 状态: 激活显示时 -> 显现 */
         .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); }
 
         .card-back {
@@ -285,11 +285,19 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
+        
+        /* 错误提示层，默认隐藏 */
+        #error-layer {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: red; background: rgba(0,0,0,0.8); padding: 20px; z-index: 10000;
+            display: none; border: 1px solid red; font-family: monospace;
+        }
     </style>
 </head>
 <body>
 
 <div class="status-toast" id="statusToast">SAVED</div>
+<div id="error-layer"></div>
 
 <div class="app-container">
     <div class="card-scroller" id="scroller">
@@ -298,7 +306,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V46_GM'; // Golden Master
+    const DB_NAME = 'BeanDance_V46_Rescue'; // Fresh DB
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
@@ -314,6 +322,7 @@
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
+    const errorLayer = document.getElementById('error-layer');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -324,6 +333,12 @@
     // --- DB ---
     function initDB() {
         return new Promise((resolve, reject) => {
+            // Safety check
+            if (!window.indexedDB) {
+                console.error("No IndexedDB");
+                // 就算没数据库，也要 resolve，以便显示 UI
+                return resolve(null);
+            }
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onupgradeneeded = (e) => {
                 db = e.target.result;
@@ -332,19 +347,29 @@
                 }
             };
             request.onsuccess = (e) => { db = e.target.result; resolve(db); };
-            request.onerror = (e) => reject(e);
+            request.onerror = (e) => { 
+                console.error("DB Error", e); 
+                // DB 错误也 resolve，防止黑屏
+                resolve(null); 
+            };
         });
     }
 
     function getAllCoffees() {
         return new Promise((resolve) => {
             if (!db) return resolve([]);
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result);
+            try {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.getAll();
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = () => resolve([]);
+            } catch(e) {
+                resolve([]);
+            }
         });
     }
 
-    // --- Fix: Independent Debounce per ID ---
     function scheduleSave(key, fn) {
         if (debounceMap.has(key)) clearTimeout(debounceMap.get(key));
         const timer = setTimeout(() => {
@@ -355,48 +380,40 @@
         debounceMap.set(key, timer);
     }
 
-    function updateMetadata(field, value, immediate = false) {
+    function updateMetadata(field, value) {
         appMetadata[field] = value;
-        if(immediate) {
-            saveToDB(METADATA_ID, appMetadata);
-        } else {
-            scheduleSave('meta', () => saveToDB(METADATA_ID, appMetadata));
-        }
+        scheduleSave('meta', () => saveToDB(METADATA_ID, appMetadata));
     }
 
-    function updateCoffee(id, field, value, immediate = false) {
+    function updateCoffee(id, field, value) {
         const item = allCoffeesCache.find(c => c.id === id);
         if (item) {
             item[field] = value;
-            if(immediate) {
-                saveToDB(id, item);
-            } else {
-                scheduleSave(`coffee-${id}`, () => saveToDB(id, item));
-            }
+            scheduleSave(`coffee-${id}`, () => saveToDB(id, item));
         }
     }
 
     function saveToDB(id, data) {
+        if (!db) return;
         try {
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
-            
-            // Fix: No structuredClone, use shallow copy for compatibility
-            const safeData = { ...data };
+            const safeData = { ...data }; // Shallow copy
             
             if (id === METADATA_ID || id === SEARCH_BG_ID) {
                 store.get(id).onsuccess = (e) => {
                     const record = e.target.result;
-                    if(record) store.put({ ...record, ...safeData }).onsuccess = () => showToast('SAVED');
-                    else store.add({ id: id, ...safeData }).onsuccess = () => showToast('SAVED');
+                    if(record) store.put({ ...record, ...safeData });
+                    else store.add({ id: id, ...safeData });
                 };
             } else {
-                store.put(safeData).onsuccess = () => showToast('SAVED');
+                store.put(safeData);
             }
         } catch(e) { console.error(e); }
     }
 
     async function addCoffee(roast) {
+        if (!db) { alert("DB Error"); return; }
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         const newCoffee = {
@@ -409,7 +426,6 @@
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
             
-            // Reset Add Menu
             const addCard = document.querySelector('.card-add');
             if(addCard) {
                 addCard.querySelector('.add-menu').classList.remove('show');
@@ -419,7 +435,7 @@
     }
 
     async function deleteCard(id) {
-        // Fix: Confirm handled by event listener
+        if (!db) return;
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
             allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
@@ -439,7 +455,6 @@
         processImage(file).then(blob => {
             if (id === SEARCH_BG_ID) {
                 saveToDB(SEARCH_BG_ID, { imageData: blob });
-                // Update Search UI
                 const wrapper = document.getElementById('search-wrapper');
                 const img = wrapper.querySelector('.bg-image');
                 if(img) {
@@ -454,7 +469,6 @@
                 if(item) {
                     item.imageData = blob;
                     saveToDB(id, item);
-                    // Update UI
                     const wrapper = document.querySelector(`.card-wrapper[data-id="${id}"]`);
                     if(wrapper) {
                         const img = wrapper.querySelector('.bg-image');
@@ -496,37 +510,9 @@
 
     // --- UI Logic ---
     function setupDelegation() {
-        // Change event (Immediate Save)
-        scroller.addEventListener('change', (e) => {
-            const t = e.target;
-            const wrapper = t.closest('.card-wrapper');
-            
-            // File
-            if(t.type === 'file') {
-                handleImageUpload(e, parseInt(wrapper.dataset.id));
-                return;
-            }
-
-            // Text Inputs (on blur/enter/change) -> Immediate Save
-            if(!wrapper) return;
-            const id = parseInt(wrapper.dataset.id);
-            
-            if (t.classList.contains('app-brand-title-input')) return updateMetadata('title', t.value, true);
-            if (t.classList.contains('app-brand-author-input')) return updateMetadata('author', t.value, true);
-
-            if(id > 0) {
-                if(t.classList.contains('title-input')) {
-                    updateCoffee(id, 'name', t.value, true);
-                } else if(t.dataset.field) {
-                    updateCoffee(id, t.dataset.field, t.value, true);
-                }
-            }
-        });
-
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // Add Card
             const addCard = t.closest('.card-add');
             if (addCard) {
                 const menu = addCard.querySelector('.add-menu');
@@ -546,18 +532,16 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // Upload Button Logic
             if (t.closest('.upload-btn')) {
                 if (wrapper.classList.contains('has-image')) {
                     if (wrapper.classList.contains('reveal-icon')) {
-                        return; // Allow file input
+                        return; 
                     } else {
                         e.preventDefault(); 
                         wrapper.classList.add('reveal-icon');
                         document.querySelectorAll('.reveal-icon').forEach(el => {
                             if(el !== wrapper) el.classList.remove('reveal-icon');
                         });
-                        
                         if (revealTimer) clearTimeout(revealTimer);
                         revealTimer = setTimeout(() => wrapper.classList.remove('reveal-icon'), 2000);
                         return;
@@ -570,7 +554,7 @@
 
             if (t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
-                if (confirm('Delete this card?')) deleteCard(id); // Single confirm
+                if (confirm('Delete?')) deleteCard(id);
                 return;
             }
 
@@ -579,16 +563,13 @@
                 return;
             }
 
-            // Flip Logic (Skip search card)
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
-                
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
         });
 
-        // Inputs
         scroller.addEventListener('input', (e) => {
             const input = e.target;
             const wrapper = input.closest('.card-wrapper');
@@ -612,9 +593,22 @@
                 }
             }
         });
+
+        scroller.addEventListener('change', (e) => {
+            if(e.target.type === 'file') {
+                const wrapper = e.target.closest('.card-wrapper');
+                const id = parseInt(wrapper.dataset.id);
+                handleImageUpload(e, id);
+            }
+        });
     }
 
     async function initApp() {
+        // 安全保险丝：防止死循环或永久黑屏
+        const failsafe = setTimeout(() => {
+            scroller.classList.add('visible');
+        }, 500);
+
         try {
             await initDB();
             const allData = await getAllCoffees();
@@ -623,6 +617,7 @@
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
             
             const searchData = allData.find(c => c.id === SEARCH_BG_ID);
+            
             allCoffeesCache = allData.filter(c => c.id > 0);
             
             scroller.innerHTML = '';
@@ -637,23 +632,23 @@
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     scroller.classList.add('visible');
-                    // Fix: Singleton Loop
+                    // 成功加载，清除保险丝
+                    clearTimeout(failsafe);
                     if(!isAnimating) animateCards();
                 });
             });
 
             setupDelegation();
-            
-            // Failsafe
-            setTimeout(() => scroller.classList.add('visible'), 500);
 
         } catch (e) {
-            console.error(e);
-            alert("Init Error");
+            console.error("App Crash", e);
+            errorLayer.style.display = 'block';
+            errorLayer.innerText = "Error: " + e.message;
+            // 即使出错也尝试显示界面
+            scroller.classList.add('visible');
         }
     }
 
-    // Fix: Remove recursive loop start
     function handleSearch(query) {
         const lower = query.toLowerCase().trim();
         document.querySelectorAll('.card-wrapper[data-id]').forEach(card => {
@@ -665,6 +660,7 @@
                 card.style.display = match ? 'block' : 'none';
             }
         });
+        requestAnimationFrame(animateCards);
     }
 
     function renderSearchCard(data) {
@@ -769,7 +765,7 @@
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
             if (card.style.display === 'none') continue;
-            
+
             const rect = card.getBoundingClientRect();
             if (rect.right < -buffer || rect.left > window.innerWidth + buffer) continue;
 
