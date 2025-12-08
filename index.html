@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V19 Negative Screen</title>
+    <title>Coffee Journal V21 Final</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -55,9 +55,8 @@
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             
-            /* 绝对居中布局 */
             position: absolute;
-            top: 50%; width: 100%; height: calc(var(--card-height) + 100px); /* 留出翻转空间 */
+            top: 50%; width: 100%; height: calc(var(--card-height) + 100px); 
             transform: translateY(-50%);
             
             align-items: center;
@@ -66,7 +65,6 @@
         }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        /* 伪元素占位 */
         .card-scroller::before,
         .card-scroller::after {
             content: '';
@@ -161,6 +159,32 @@
             display: flex; flex-direction: column; color: white;
         }
 
+        /* 搜索卡片专属 (极简玻璃态) */
+        .search-card-inner {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; 
+            justify-content: center; align-items: center;
+            padding: 30px; box-sizing: border-box;
+            background: #121212; /* 与普通卡片一致的深色底 */
+        }
+        
+        .search-icon-large {
+            width: 40px; height: 40px; stroke: rgba(255,255,255,0.3); margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%; background: transparent; border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            color: white; font-size: 24px; font-weight: 700;
+            padding: 10px 0; outline: none; text-align: center;
+        }
+        .search-input::placeholder { color: rgba(255,255,255,0.1); }
+
+        .search-hint {
+            margin-top: 25px; font-size: 12px; color: rgba(255,255,255,0.25); letter-spacing: 1px; text-transform: uppercase;
+        }
+
+        /* 表单与文本 */
         .title-input-group {
             margin-bottom: 30px; text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -231,35 +255,6 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- 搜索卡片 (负一屏) --- */
-        .search-card {
-            background: rgba(40, 40, 40, 0.4);
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(20px);
-            border-radius: 40px;
-            width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            padding: 30px; box-sizing: border-box;
-        }
-        
-        .search-header {
-            font-size: 14px; text-transform: uppercase; letter-spacing: 2px;
-            color: rgba(255,255,255,0.4); margin-bottom: 30px;
-        }
-
-        .search-input {
-            width: 100%; background: transparent; border: none;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            color: white; font-size: 28px; font-weight: 700;
-            padding: 15px 0; outline: none; text-align: center;
-        }
-        .search-input::placeholder { color: rgba(255,255,255,0.1); }
-
-        .search-hint {
-            margin-top: 30px; font-size: 13px; color: rgba(255,255,255,0.25);
-        }
-
         .status-toast {
             position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
@@ -281,7 +276,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V19'; // V19 Negative Screen
+    const DB_NAME = 'CoffeeJournalDB_Pro_V21'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
@@ -391,7 +386,6 @@
         });
     }
 
-    // --- 核心逻辑 ---
     const scroller = document.getElementById('scroller');
     const loading = document.getElementById('loading');
     
@@ -399,6 +393,7 @@
     const cardObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const cardWrapper = entry.target;
+            // 搜索卡片和添加按钮不翻转
             if(cardWrapper.id === 'add-card-wrapper' || cardWrapper.id === 'search-wrapper') return;
 
             const img = cardWrapper.querySelector('.bg-image');
@@ -435,7 +430,6 @@
         }
     }
 
-    // 搜索逻辑
     function handleSearch(query) {
         const lowerQuery = query.toLowerCase().trim();
         if (!lowerQuery) {
@@ -448,41 +442,42 @@
         renderCardList(filtered, false); 
     }
 
-    // 渲染列表函数 (包含负一屏)
     function renderCardList(list, isInitialLoad = false) {
         scroller.innerHTML = '';
-        
-        // 1. 渲染负一屏搜索卡片
         renderSearchCard();
-
-        // 2. 渲染咖啡数据
         list.forEach(renderCard); 
-        
-        // 3. 渲染添加按钮
         renderAddButton();
         
-        // 4. 核心：首次加载时，瞬间跳转到第一张咖啡卡片（隐藏搜索卡片）
-        if (isInitialLoad && list.length > 0) {
-            // 使用 setTimeout 确保 DOM 渲染完毕
+        // 初始加载时跳过搜索卡片
+        if (isInitialLoad) {
             setTimeout(() => {
-                const firstCard = scroller.querySelector('.card-wrapper[data-id]');
-                if (firstCard) {
-                    firstCard.scrollIntoView({ inline: 'center', behavior: 'instant' }); // instant 瞬间跳转
+                // 计算卡片宽度+间距 = 360+24 = 384
+                // 滚动到 384px 处，刚好隐藏第一个卡片（搜索卡片）
+                if (scroller.scrollTo) {
+                    scroller.scrollTo({ left: 384, behavior: 'instant' }); 
+                } else {
+                    scroller.scrollLeft = 384;
                 }
             }, 10);
         }
     }
 
-    // 渲染搜索卡片
+    // 渲染搜索卡片 (回到纯净卡片样式)
     function renderSearchCard() {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
-        wrapper.id = 'search-wrapper'; // 标记为搜索卡片
+        wrapper.id = 'search-wrapper';
+        
         wrapper.innerHTML = `
-            <div class="search-card">
-                <div class="search-header">Search</div>
-                <input type="text" class="search-input" placeholder="Type Name..." oninput="handleSearch(this.value)">
-                <div class="search-hint">Swipe right for library</div>
+            <div class="card">
+                <div class="card-front">
+                    <div class="search-card-inner">
+                        <svg class="search-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" class="search-input" placeholder="Search..." oninput="handleSearch(this.value)">
+                        <div class="search-hint">Swipe right for library</div>
+                    </div>
+                </div>
+                <div class="card-back" style="display:none;"></div>
             </div>
         `;
         scroller.appendChild(wrapper);
@@ -641,7 +636,6 @@
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
-            // 重新渲染列表以更新索引
             renderCardList(allCoffeesCache);
         }
     }
@@ -656,41 +650,57 @@
         }
     }
 
+    // --- 动态动画 (搜索卡片显隐逻辑) ---
     function animateCards() {
         const cards = document.querySelectorAll('.card-wrapper');
         const scrollerRect = scroller.getBoundingClientRect();
         const centerPoint = scrollerRect.left + scrollerRect.width / 2;
 
-        const enableEffect = cards.length > 5; 
-
         cards.forEach(card => {
-            if (!enableEffect) {
-                card.style.transform = 'scale(1)';
-                card.style.opacity = '1';
-                return;
-            }
-
             const rect = card.getBoundingClientRect();
+            // 简单优化
             if (rect.right < -50 || rect.left > window.innerWidth + 50) return;
 
             const cardCenter = rect.left + rect.width / 2;
             const distance = Math.abs(centerPoint - cardCenter);
-            const maxDistance = 400;
-
-            let scale = 1;
-            let opacity = 1;
-
-            if (distance < maxDistance) {
-                const ratio = distance / maxDistance;
-                scale = 1 - (ratio * 0.1); 
-                opacity = 1 - (ratio * 0.5); 
-            } else {
-                scale = 0.9;
-                opacity = 0.5;
-            }
             
-            card.style.transform = `scale(${scale})`;
-            card.style.opacity = opacity;
+            // 专门处理搜索卡片 (ID: search-wrapper)
+            if (card.id === 'search-wrapper') {
+                // 如果距离中心超过 300px，开始淡出
+                // 384px 是初始位置，所以往右滑一点点就开始变淡
+                let searchScale = 1;
+                let searchOpacity = 1;
+                
+                if (distance > 50) {
+                    const ratio = (distance - 50) / 300; // 0 到 1 的过渡区间
+                    searchScale = Math.max(0.8, 1 - ratio * 0.2);
+                    searchOpacity = Math.max(0, 1 - ratio * 1.5);
+                }
+                card.style.transform = `scale(${searchScale})`;
+                card.style.opacity = searchOpacity;
+            } 
+            else {
+                // 其他卡片：只有在卡片很多时才启用聚焦特效
+                const enableFocusEffect = cards.length > 6; 
+                if (enableFocusEffect) {
+                    const maxDistance = 400;
+                    let scale = 1;
+                    let opacity = 1;
+                    if (distance < maxDistance) {
+                        const ratio = distance / maxDistance;
+                        scale = 1 - (ratio * 0.1); 
+                        opacity = 1 - (ratio * 0.5); 
+                    } else {
+                        scale = 0.9;
+                        opacity = 0.5;
+                    }
+                    card.style.transform = `scale(${scale})`;
+                    card.style.opacity = opacity;
+                } else {
+                    card.style.transform = 'scale(1)';
+                    card.style.opacity = '1';
+                }
+            }
         });
     }
 
