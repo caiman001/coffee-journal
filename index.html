@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V25 Zero Flicker</title>
+    <title>Coffee Journal V26 Perfect Launch</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -46,6 +46,27 @@
             padding: 0; margin: 0;
         }
 
+        /* --- 启动页 (Splash Screen) --- */
+        #splash-screen {
+            position: fixed; inset: 0; z-index: 9999;
+            background-color: #000000;
+            display: flex; justify-content: center; align-items: center;
+            transition: opacity 0.6s ease-in-out;
+            pointer-events: none; /* 淡出后不阻挡点击 */
+        }
+        
+        /* 咖啡豆 Icon */
+        .loading-bean {
+            width: 60px; height: 60px;
+            fill: none; stroke: rgba(255,255,255,0.8); stroke-width: 1.5;
+            animation: breathe 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes breathe {
+            0% { opacity: 0.3; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1.05); }
+        }
+
         /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
@@ -62,27 +83,21 @@
             align-items: center;
             padding: 0; 
             will-change: scroll-position;
-
-            /* 核心修复：初始隐身，防止位移闪烁 */
-            opacity: 0; 
-            transition: opacity 0.4s ease-out; 
+            
+            /* 配合 Splash Screen，底层容器也做个渐显 */
+            opacity: 0; transition: opacity 0.5s ease;
         }
-        /* 当 JS 准备好位置后，添加此 active 类显示 */
-        .card-scroller.active-view {
-            opacity: 1;
-        }
-
+        .card-scroller.ready { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
 
         .card-scroller::before,
         .card-scroller::after {
-            content: '';
-            display: block;
+            content: ''; display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
             width: calc(50vw - var(--card-width) / 2);
         }
 
-        /* --- 通用容器 --- */
+        /* --- 卡片容器 --- */
         .card-wrapper {
             position: relative;
             flex: 0 0 var(--card-width);
@@ -123,7 +138,6 @@
             animation: spin 12s linear infinite, breathe 6s ease-in-out infinite alternate;
         }
         @keyframes spin { to { --angle: 360deg; } }
-        @keyframes breathe { 0% { opacity: 0.3; } 100% { opacity: 1; } }
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
         .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
@@ -149,26 +163,6 @@
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
             color: rgba(255,255,255,0.7); text-transform: uppercase; 
         }
-
-        /* 搜索栏样式融合 */
-        .search-bar-wrapper {
-            display: flex; align-items: center; justify-content: center;
-            margin-top: 10px;
-            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
-        }
-        .search-bar-wrapper:focus-within { opacity: 1; }
-        
-        .search-icon-small {
-            width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px;
-        }
-        .search-input-inline {
-            background: transparent; border: none; outline: none;
-            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
-            text-transform: uppercase; width: 120px;
-            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
-            text-align: center; padding-bottom: 4px;
-        }
-        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
 
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
@@ -264,22 +258,47 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px; }
+        
+        /* 搜索栏样式融合 */
+        .search-bar-wrapper {
+            display: flex; align-items: center; justify-content: center; margin-top: 10px;
+            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
+        }
+        .search-bar-wrapper:focus-within { opacity: 1; }
+        .search-icon-small {
+            width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px;
+        }
+        .search-input-inline {
+            background: transparent; border: none; outline: none;
+            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
+            text-transform: uppercase; width: 120px;
+            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
+            text-align: center; padding-bottom: 4px;
+        }
+        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
+
     </style>
 </head>
 <body>
 
+<!-- 启动遮罩 -->
+<div id="splash-screen">
+    <svg class="loading-bean" viewBox="0 0 24 24">
+        <!-- 简化的咖啡豆路径 -->
+        <path d="M12 3c-5 0-9 4-9 9s4 9 9 9 9-4 9-9-4-9-9-9zm0 16c-3.9 0-7-3.1-7-7 0-2.8 1.6-5.2 4-6.3V12c0 1.7 1.3 3 3 3s3-1.3 3-3V5.7c2.4 1.1 4 3.5 4 6.3 0 3.9-3.1 7-7 7z" />
+    </svg>
+</div>
+
 <div class="status-toast" id="statusToast">SAVED</div>
 
 <div class="app-container">
-    <div class="loading-text" id="loading">...</div>
     <div class="card-scroller" id="scroller">
         <!-- JS 动态填充 -->
     </div>
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V25'; // V25 Flicker Fix
+    const DB_NAME = 'CoffeeJournalDB_Pro_V26'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0; 
@@ -405,7 +424,7 @@
     }
 
     const scroller = document.getElementById('scroller');
-    const loading = document.getElementById('loading');
+    const splash = document.getElementById('splash-screen');
     
     // 观察器
     const cardObserver = new IntersectionObserver((entries) => {
@@ -444,25 +463,22 @@
 
             allCoffeesCache = allData.filter(c => c.id !== SEARCH_BG_ID);
             
-            loading.style.display = 'none';
             renderCardList(allCoffeesCache, true); // true = 首次加载
             
             requestAnimationFrame(animateCards);
         } catch (error) {
             console.error(error);
-            loading.innerText = "Error Loading Data";
+            splash.innerHTML = "<div style='color:white'>Error Loading DB</div>";
         }
     }
 
-    // 搜索逻辑
     function handleSearch(query) {
         const lowerQuery = query.toLowerCase().trim();
-        // 获取所有普通卡片
         const cards = document.querySelectorAll('.card-wrapper[data-id]');
         
         cards.forEach(card => {
             const id = parseInt(card.getAttribute('data-id'));
-            if (id === SEARCH_BG_ID) return; // 跳过搜索卡片本身
+            if (id === SEARCH_BG_ID) return;
 
             const data = allCoffeesCache.find(c => c.id === id);
             if (!data) return;
@@ -478,36 +494,32 @@
 
     function renderCardList(list, isInitialLoad = false) {
         scroller.innerHTML = '';
-        
-        // 1. 左侧搜索卡片
         renderSearchCard();
-
-        // 2. 中间数据卡片
         list.forEach(renderCard); 
-        
-        // 3. 右侧添加按钮
         renderAddButton();
         
-        // 4. 核心修复：防止位移闪烁
         if (isInitialLoad) {
-            // 卡片宽360 + 间距24 = 384
             const targetX = 384; 
-            
-            // 立即设置滚动位置（此时 opacity 是 0）
             scroller.scrollLeft = targetX;
 
-            // 等待两帧，确保浏览器完成布局绘制后，再显示
+            // 双重等待确保渲染完成
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    scroller.classList.add('active-view');
+                    // 淡出 Splash，淡入 Scroller
+                    splash.style.opacity = '0';
+                    scroller.classList.add('ready');
+                    
+                    // 动画完成后移除 Splash
+                    setTimeout(() => {
+                        splash.remove();
+                    }, 600);
                 });
             });
         } else {
-            scroller.classList.add('active-view');
+            scroller.classList.add('ready');
         }
     }
 
-    // 渲染搜索卡片 (极简版)
     function renderSearchCard() {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -520,7 +532,6 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <!-- 上传自定义搜索背景 -->
                     <label class="upload-btn" onclick="event.stopPropagation()">
                         <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${SEARCH_BG_ID})">
                         <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
@@ -536,7 +547,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- 搜索卡片没有背面 -->
                 <div class="card-back" style="display:none;"></div>
             </div>
         `;
@@ -623,7 +633,6 @@
             }
         };
 
-        // DOM 插入：在 Add Button 之前插入
         const addBtn = document.getElementById('add-card-wrapper');
         if(addBtn) {
             scroller.insertBefore(wrapper, addBtn);
@@ -673,14 +682,11 @@
         icon.style.display = 'block';
 
         const newCoffee = await addCoffee(roast);
-        // 单独渲染，不重置列表
-        renderCard(newCoffee);
+        renderCard(newCoffee); // 插入新卡片
         
         setTimeout(() => {
             const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
-            // 倒数第一个是新增的咖啡卡片 (Search -> C1 -> C2 -> NewCard -> AddBtn)
             if(cards.length > 0) {
-                // NewCard 是 data-id 的最后一个
                 cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', inline: 'center' });
             }
         }, 100);
@@ -707,7 +713,6 @@
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
-            // 移除 DOM 元素而不是重绘
             const card = document.querySelector(`.card-wrapper[data-id="${id}"]`);
             if(card) card.remove();
         }
@@ -749,7 +754,7 @@
                 return;
             }
 
-            // 其他卡片
+            // 其他卡片特效
             const enableEffect = cards.length > 6; 
             if (!enableEffect) {
                 card.style.transform = 'scale(1)';
