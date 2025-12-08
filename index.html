@@ -7,17 +7,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V26 Perfect Launch</title>
+    <title>Coffee Journal V27 Perfect Load</title>
     <style>
         :root {
             --bg-color: #000000;
             --card-width: 360px;
             --card-height: 580px;
-            
-            --roast-light: #D4A373;
-            --roast-medium: #8D6E63;
-            --roast-dark: #3E2723;
-            
             --glass-bg: rgba(28, 28, 30, 0.65);
             --glass-shadow: 0 40px 80px -10px rgba(0,0,0,0.9);
         }
@@ -39,32 +34,41 @@
             color: #fff;
         }
 
+        /* --- 启动页 (Loading Screen) --- */
+        #splash-screen {
+            position: fixed; inset: 0; z-index: 9999;
+            background-color: #000000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 1;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1); /* 优雅淡出 */
+            pointer-events: none;
+        }
+        
+        #splash-screen.hidden { opacity: 0; }
+
+        /* 简化的咖啡豆 SVG */
+        .loading-bean {
+            width: 80px; height: 80px;
+            fill: none; 
+            stroke: rgba(255,255,255,0.9); 
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            /* 呼吸动画 */
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+
         .app-container {
             position: fixed; inset: 0; z-index: 1;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             padding: 0; margin: 0;
-        }
-
-        /* --- 启动页 (Splash Screen) --- */
-        #splash-screen {
-            position: fixed; inset: 0; z-index: 9999;
-            background-color: #000000;
-            display: flex; justify-content: center; align-items: center;
-            transition: opacity 0.6s ease-in-out;
-            pointer-events: none; /* 淡出后不阻挡点击 */
-        }
-        
-        /* 咖啡豆 Icon */
-        .loading-bean {
-            width: 60px; height: 60px;
-            fill: none; stroke: rgba(255,255,255,0.8); stroke-width: 1.5;
-            animation: breathe 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes breathe {
-            0% { opacity: 0.3; transform: scale(0.95); }
-            100% { opacity: 1; transform: scale(1.05); }
         }
 
         /* --- 滚动区域 --- */
@@ -83,16 +87,20 @@
             align-items: center;
             padding: 0; 
             will-change: scroll-position;
-            
-            /* 配合 Splash Screen，底层容器也做个渐显 */
-            opacity: 0; transition: opacity 0.5s ease;
+
+            /* 初始完全隐藏，等待 JS 就位 */
+            opacity: 0;
+            transition: opacity 0.6s ease-out;
         }
-        .card-scroller.ready { opacity: 1; }
+        /* JS 准备好后添加此 output 类 */
+        .card-scroller.visible { opacity: 1; }
+
         .card-scroller::-webkit-scrollbar { display: none; }
 
         .card-scroller::before,
         .card-scroller::after {
-            content: ''; display: block;
+            content: '';
+            display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
             width: calc(50vw - var(--card-width) / 2);
         }
@@ -112,7 +120,6 @@
         }
         .card-wrapper.active { z-index: 100; }
 
-        /* --- 卡片本体 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -138,6 +145,7 @@
             animation: spin 12s linear infinite, breathe 6s ease-in-out infinite alternate;
         }
         @keyframes spin { to { --angle: 360deg; } }
+        @keyframes breathe { 0% { opacity: 0.3; } 100% { opacity: 1; } }
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
         .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
@@ -252,14 +260,7 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .status-toast {
-            position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
-            padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
-            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
-        }
-        
-        /* 搜索栏样式融合 */
+        /* 搜索样式 */
         .search-bar-wrapper {
             display: flex; align-items: center; justify-content: center; margin-top: 10px;
             opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
@@ -277,14 +278,20 @@
         }
         .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
 
+        .status-toast {
+            position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
+        }
     </style>
 </head>
 <body>
 
-<!-- 启动遮罩 -->
+<!-- 启动幕布 -->
 <div id="splash-screen">
     <svg class="loading-bean" viewBox="0 0 24 24">
-        <!-- 简化的咖啡豆路径 -->
+        <!-- 咖啡豆路径 -->
         <path d="M12 3c-5 0-9 4-9 9s4 9 9 9 9-4 9-9-4-9-9-9zm0 16c-3.9 0-7-3.1-7-7 0-2.8 1.6-5.2 4-6.3V12c0 1.7 1.3 3 3 3s3-1.3 3-3V5.7c2.4 1.1 4 3.5 4 6.3 0 3.9-3.1 7-7 7z" />
     </svg>
 </div>
@@ -292,13 +299,14 @@
 <div class="status-toast" id="statusToast">SAVED</div>
 
 <div class="app-container">
+    <!-- 移除 Loading Text，因为有 Splash Screen 了 -->
     <div class="card-scroller" id="scroller">
         <!-- JS 动态填充 -->
     </div>
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V26'; 
+    const DB_NAME = 'CoffeeJournalDB_Pro_V27'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0; 
@@ -326,10 +334,7 @@
                 db = e.target.result;
                 resolve(db);
             };
-            request.onerror = (e) => {
-                console.error("DB Error", e);
-                reject(e);
-            };
+            request.onerror = (e) => { console.error("DB Error", e); reject(e); };
         });
     }
 
@@ -346,20 +351,14 @@
         showToast('SAVING...');
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
-        
         if (id === SEARCH_BG_ID) {
             store.get(id).onsuccess = (e) => {
                 const record = e.target.result;
-                if (record) {
-                    Object.assign(record, data);
-                    store.put(record).onsuccess = () => showToast('SAVED');
-                } else {
-                    store.add({ id: SEARCH_BG_ID, ...data }).onsuccess = () => showToast('SAVED');
-                }
+                if (record) { Object.assign(record, data); store.put(record).onsuccess = () => showToast('SAVED'); } 
+                else { store.add({ id: SEARCH_BG_ID, ...data }).onsuccess = () => showToast('SAVED'); }
             };
             return;
         }
-
         store.get(id).onsuccess = (e) => {
             const record = e.target.result;
             if(record) {
@@ -378,8 +377,7 @@
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
             const newCoffee = {
-                name: 'New Coffee', 
-                powder: '18', liquid: '36', time: '25', grind: '2.0', 
+                name: 'New Coffee', powder: '18', liquid: '36', time: '25', grind: '2.0', 
                 roast: roastType, imageData: null, created: Date.now()
             };
             store.add(newCoffee).onsuccess = (e) => {
@@ -444,9 +442,7 @@
                 cardWrapper.classList.add('active');
             } else {
                 cardWrapper.classList.remove('active');
-                if (cardWrapper.classList.contains('flipped')) {
-                    cardWrapper.classList.remove('flipped');
-                }
+                if (cardWrapper.classList.contains('flipped')) cardWrapper.classList.remove('flipped');
             }
         });
     }, { root: scroller, rootMargin: '0px', threshold: 0.6 });
@@ -457,18 +453,16 @@
             const allData = await getAllCoffees();
             
             const searchBgData = allData.find(c => c.id === SEARCH_BG_ID);
-            if (searchBgData && searchBgData.imageData) {
-                imageCache.set(SEARCH_BG_ID, searchBgData.imageData);
-            }
+            if (searchBgData && searchBgData.imageData) imageCache.set(SEARCH_BG_ID, searchBgData.imageData);
 
             allCoffeesCache = allData.filter(c => c.id !== SEARCH_BG_ID);
             
-            renderCardList(allCoffeesCache, true); // true = 首次加载
+            // 渲染数据
+            renderCardList(allCoffeesCache, true); // 传入 true 表示首次加载
             
-            requestAnimationFrame(animateCards);
         } catch (error) {
             console.error(error);
-            splash.innerHTML = "<div style='color:white'>Error Loading DB</div>";
+            splash.innerHTML = "<div style='color:white'>Error Loading</div>";
         }
     }
 
@@ -490,6 +484,7 @@
                 card.style.display = match ? 'flex' : 'none';
             }
         });
+        requestAnimationFrame(animateCards);
     }
 
     function renderCardList(list, isInitialLoad = false) {
@@ -498,25 +493,31 @@
         list.forEach(renderCard); 
         renderAddButton();
         
+        // 关键逻辑：完美无缝启动
         if (isInitialLoad) {
-            const targetX = 384; 
-            scroller.scrollLeft = targetX;
+            // 1. 强制设定位置 (此时 opacity 为 0, 用户看不见)
+            // 360(宽) + 24(距) = 384px，正好跳过第一个搜索卡片
+            scroller.scrollLeft = 384;
 
-            // 双重等待确保渲染完成
+            // 2. 强制预计算 3D 状态 (解决右下角放大归位问题)
+            // 手动调用动画计算，让所有卡片的 transform 在显示前就位
+            animateCards();
+
+            // 3. 双重 RAF 等待渲染完成
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    // 淡出 Splash，淡入 Scroller
-                    splash.style.opacity = '0';
-                    scroller.classList.add('ready');
+                    // 4. 揭幕：列表显现，Loading 消失
+                    scroller.classList.add('visible');
+                    splash.classList.add('hidden');
                     
-                    // 动画完成后移除 Splash
-                    setTimeout(() => {
-                        splash.remove();
-                    }, 600);
+                    // 清理 Splash DOM
+                    setTimeout(() => splash.remove(), 800);
                 });
             });
         } else {
-            scroller.classList.add('ready');
+            scroller.classList.add('visible');
+            // 非首次加载，直接执行动画
+            requestAnimationFrame(animateCards);
         }
     }
 
@@ -728,6 +729,7 @@
         }
     }
 
+    // 预计算函数：必须在显示前调用一次
     function animateCards() {
         const cards = document.querySelectorAll('.card-wrapper');
         const scrollerRect = scroller.getBoundingClientRect();
@@ -735,12 +737,13 @@
 
         cards.forEach(card => {
             const rect = card.getBoundingClientRect();
+            // 屏幕外略过
             if (rect.right < -50 || rect.left > window.innerWidth + 50) return;
 
             const cardCenter = rect.left + rect.width / 2;
             const distance = Math.abs(centerPoint - cardCenter);
             
-            // 搜索卡片向左淡出
+            // 搜索卡片特效
             if (card.id === 'search-wrapper') {
                 let searchScale = 1;
                 let searchOpacity = 1;
@@ -754,7 +757,7 @@
                 return;
             }
 
-            // 其他卡片特效
+            // 普通卡片特效
             const enableEffect = cards.length > 6; 
             if (!enableEffect) {
                 card.style.transform = 'scale(1)';
@@ -774,6 +777,7 @@
                 scale = 0.9;
                 opacity = 0.5;
             }
+            
             card.style.transform = `scale(${scale})`;
             card.style.opacity = opacity;
         });
