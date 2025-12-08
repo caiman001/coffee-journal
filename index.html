@@ -7,13 +7,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V31 Performance Master</title>
+    <title>BeanDance V33 Professional</title>
     <style>
         :root {
             --bg-color: #000000;
             --card-width: 360px;
             --card-height: 580px;
-            --card-gap: 24px; /* 定义间距变量以便JS计算 */
             
             --roast-light: #D4A373;
             --roast-medium: #8D6E63;
@@ -50,30 +49,29 @@
         /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
-            gap: var(--card-gap);
+            gap: 24px;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             
             position: absolute;
-            top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
+            top: 50%; width: 100%; height: calc(var(--card-height) + 100px); 
             transform: translateY(-50%);
             
             align-items: center;
             padding: 0; 
-            will-change: scroll-position;
-
-            /* 初始完全隐藏，等待布局就绪 */
-            opacity: 0;
-            transition: opacity 0.4s ease-out;
             
-            /* 性能优化：告诉浏览器这个区域有复杂的合成层 */
-            contain: layout style;
+            /* 性能关键：启用硬件加速层 */
+            will-change: scroll-position;
+            /* 初始隐身 */
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
         }
-        .card-scroller.ready { opacity: 1; }
+        .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
 
+        /* 伪元素占位 */
         .card-scroller::before,
         .card-scroller::after {
             content: '';
@@ -92,9 +90,12 @@
             z-index: 1;
             transform: scale(1);
             opacity: 1;
-            /* 移除 transition，完全由 JS 驱动 transform 以获得最高帧率 */
-            /* transition: transform 0.1s linear; */
+            /* 移除 transition，由 JS 动画循环完全接管以提升性能 */
+            /* transition: transform 0.4s ... */ 
             will-change: transform, opacity;
+            
+            /* CSS 性能优化：限制重绘区域 */
+            contain: layout style;
         }
         .card-wrapper.active { z-index: 100; }
 
@@ -114,7 +115,7 @@
             box-shadow: var(--glass-shadow);
         }
 
-        /* 流光特效 - 性能优化：仅在 active 时播放动画 */
+        /* 流光特效：仅在 active 时运行动画以节省 GPU */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -122,10 +123,9 @@
             -webkit-mask-composite: xor; mask-composite: exclude;
             pointer-events: none; z-index: 10;
             animation: spin 12s linear infinite, breathe 6s ease-in-out infinite alternate;
-            /* 默认暂停，节省 GPU */
             animation-play-state: paused;
         }
-        .card-wrapper.active .card-front::after, 
+        .card-wrapper.active .card-front::after,
         .card-wrapper.active .card-back::after {
             animation-play-state: running;
         }
@@ -134,10 +134,7 @@
         @keyframes breathe { 0% { opacity: 0.3; } 100% { opacity: 1; } }
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
-        .bg-image { 
-            width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s;
-            background-color: #1a1a1a; /* 图片加载前的占位色 */
-        }
+        .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; background-color: #1a1a1a; }
         
         .overlay-gradient {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
@@ -152,20 +149,21 @@
             padding-bottom: 50px; align-items: center; text-align: center;
         }
 
-        .app-brand-title-input, .app-brand-author-input {
+        /* 品牌信息 */
+        .app-brand-title-input {
             background: transparent; border: none; outline: none;
             font-family: inherit; margin: 0; text-align: center; width: 100%; pointer-events: auto;
-            caret-color: #fff;
-        }
-        .app-brand-title-input {
-            font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -1px;
+            font-size: 38px; font-weight: 800; 
+            line-height: 1; letter-spacing: -1px;
             background: linear-gradient(135deg, #fff 0%, #dcdcdc 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3); caret-color: #fff;
         }
         .app-brand-author-input {
-            margin: 6px 0 20px 0; font-size: 10px; letter-spacing: 4px; font-weight: 600;
-            color: rgba(255,255,255,0.5); text-transform: uppercase; 
+            background: transparent; border: none; outline: none;
+            font-family: inherit; margin: 6px 0 20px 0; text-align: center; width: 100%; pointer-events: auto;
+            font-size: 10px; letter-spacing: 4px; font-weight: 600;
+            color: rgba(255,255,255,0.5); text-transform: uppercase; caret-color: #fff;
         }
 
         .card-content h2 { 
@@ -177,6 +175,25 @@
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
             color: rgba(255,255,255,0.7); text-transform: uppercase; pointer-events: none;
         }
+
+        /* 搜索栏 */
+        .search-bar-wrapper {
+            display: flex; align-items: center; justify-content: center;
+            margin-top: 10px;
+            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
+        }
+        .search-bar-wrapper:focus-within { opacity: 1; }
+        .search-icon-small {
+            width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px;
+        }
+        .search-input-inline {
+            background: transparent; border: none; outline: none;
+            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
+            text-transform: uppercase; width: 120px;
+            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
+            text-align: center; padding-bottom: 4px;
+        }
+        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
 
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
@@ -191,8 +208,7 @@
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
-            backdrop-filter: blur(50px) saturate(180%);
-            -webkit-backdrop-filter: blur(50px) saturate(180%);
+            backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%);
             padding: 50px 30px; 
             display: flex; flex-direction: column; color: white;
         }
@@ -267,27 +283,13 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .search-bar-wrapper {
-            display: flex; align-items: center; justify-content: center; margin-top: 10px;
-            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
-        }
-        .search-bar-wrapper:focus-within { opacity: 1; }
-        .search-icon-small { width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px; }
-        .search-input-inline {
-            background: transparent; border: none; outline: none;
-            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
-            text-transform: uppercase; width: 120px;
-            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
-            text-align: center; padding-bottom: 4px;
-        }
-        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
-
         .status-toast {
             position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
+        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px; }
     </style>
 </head>
 <body>
@@ -301,19 +303,21 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V31_Perf'; 
-    const DB_VERSION = 1; 
+    const DB_NAME = 'BeanDance_V33_Perf'; 
+    const DB_VERSION = 2; // Upgraded for Blob structure
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
     const METADATA_ID = -1;
-    const CARD_FULL_WIDTH = 384; // 360(width) + 24(gap)
+    
+    // 360(width) + 24(gap) = 384px (First card position)
+    const FIRST_CARD_OFFSET = 384; 
     
     let db;
+    // 使用 WeakMap 辅助管理 DOM 引用，但主要数据在 allCoffeesCache
     let allCoffeesCache = [];
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     let debounceTimer;
     
-    // UI References
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
 
@@ -323,7 +327,7 @@
         setTimeout(() => toast.style.opacity = '0', 1500);
     }
 
-    // --- 数据库操作 (Data Layer) ---
+    // --- Database (Blob Optimized) ---
     function initDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -346,112 +350,85 @@
         });
     }
 
-    // 保存 Blob 图片
-    function saveBlob(id, blob) {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.get(id).onsuccess = (e) => {
-            const record = e.target.result;
-            if(record) {
-                store.put({ ...record, imageData: blob }).onsuccess = () => showToast('SAVED');
-            } else if (id === SEARCH_BG_ID) {
-                store.add({ id: SEARCH_BG_ID, imageData: blob }).onsuccess = () => showToast('SAVED');
-            }
-        };
-        // 更新缓存
-        const item = allCoffeesCache.find(c => c.id === id);
-        if(item) item.imageData = blob;
-        else if (id === SEARCH_BG_ID) allCoffeesCache.push({id: SEARCH_BG_ID, imageData: blob});
-        
-        // 刷新显示
-        const img = document.getElementById(`img-${id}`);
-        if(img) {
-            if (img.src) URL.revokeObjectURL(img.src);
-            img.src = URL.createObjectURL(blob);
-            img.style.opacity = '1';
-        }
-    }
-
+    // --- Data Safety (Debounced Writes) ---
     function updateMetadata(field, value) {
         appMetadata[field] = value;
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            store.get(METADATA_ID).onsuccess = (e) => {
-                const record = e.target.result;
-                if(record) store.put({ ...record, ...appMetadata });
-                else store.add({ id: METADATA_ID, ...appMetadata });
-                showToast('SAVED');
-            };
-        }, 500);
+        scheduleSave(METADATA_ID, appMetadata);
     }
 
     function updateCoffee(id, data) {
-        // 更新缓存
         const index = allCoffeesCache.findIndex(c => c.id === id);
         if(index !== -1) Object.assign(allCoffeesCache[index], data);
+        scheduleSave(id, data);
+    }
 
-        // 防抖写入
+    function scheduleSave(id, data) {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
-            store.get(id).onsuccess = (e) => {
-                const record = e.target.result;
-                if(record) {
-                    Object.assign(record, data);
-                    store.put(record).onsuccess = () => showToast('SAVED');
-                }
-            };
-        }, 500);
-    }
-
-    async function createCard(roast, e) {
-        e.stopPropagation();
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const newCoffee = {
-            name: 'New Coffee', 
-            powder: '18', liquid: '36', time: '25', grind: '2.0', 
-            roast: roastType, imageData: null, created: Date.now()
-        };
-        
-        store.add(newCoffee).onsuccess = (evt) => {
-            newCoffee.id = evt.target.result;
-            // 插入到数组倒数第二位置 (添加按钮前)
-            const insertIndex = allCoffeesCache.findIndex(c => c.id === 'add_btn') || allCoffeesCache.length;
-            allCoffeesCache.splice(insertIndex, 0, newCoffee);
             
-            // DOM 插入
-            renderSingleCard(newCoffee, true);
-            
-            // 滚动
-            setTimeout(() => {
-                const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
-                if(cards.length > 0) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }, 50);
-        };
-    }
-
-    async function deleteCard(id) {
-        if (!confirm('Delete this card?')) return;
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
-            // 清理缓存
-            allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
-            // 移除 DOM
-            const card = document.querySelector(`.card-wrapper[data-id="${id}"]`);
-            if(card) {
-                // 清理 Blob URL
-                const img = card.querySelector('.bg-image');
-                if(img && img.src) URL.revokeObjectURL(img.src);
-                card.remove();
+            if (id === METADATA_ID || id === SEARCH_BG_ID) {
+                // 特殊 ID 处理：检查是否存在，存在则更新，不存在则添加
+                store.get(id).onsuccess = (e) => {
+                    const record = e.target.result;
+                    if(record) store.put({ ...record, ...data }).onsuccess = () => showToast('SAVED');
+                    else store.add({ id: id, ...data }).onsuccess = () => showToast('SAVED');
+                };
+            } else {
+                // 普通卡片更新
+                store.get(id).onsuccess = (e) => {
+                    const record = e.target.result;
+                    if(record) {
+                        // 确保只更新字段，不丢失 imageBlob
+                        Object.assign(record, data);
+                        store.put(record).onsuccess = () => showToast('SAVED');
+                    }
+                };
             }
-        };
+        }, 500); // 500ms 防抖
     }
 
-    // --- 图像处理 (Canvas Blob) ---
+    // --- Image Handling (Blob) ---
+    function handleImageUpload(e, id) {
+        const file = e.target.files[0];
+        if(!file) return;
+        showToast('PROCESSING...');
+        
+        processImage(file).then(blob => {
+            // 1. 更新数据库 (立即写入，不防抖)
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            store.get(id).onsuccess = (ev) => {
+                const record = ev.target.result;
+                if(record) {
+                    record.imageBlob = blob;
+                    store.put(record);
+                } else if(id === SEARCH_BG_ID) {
+                    store.add({ id: SEARCH_BG_ID, imageBlob: blob });
+                }
+                showToast('SAVED');
+            };
+
+            // 2. 更新内存缓存
+            if(id === SEARCH_BG_ID) {
+               // 搜索卡片特殊处理
+            } else {
+               const item = allCoffeesCache.find(c => c.id === id);
+               if(item) item.imageBlob = blob;
+            }
+
+            // 3. 更新 DOM
+            const img = document.getElementById(`img-${id}`);
+            if(img) {
+                // 释放旧 URL
+                if(img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+                img.src = URL.createObjectURL(blob);
+                img.style.opacity = 1;
+            }
+        });
+    }
+
     function processImage(file) {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -462,190 +439,165 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
+                    // 限制最大尺寸，保证性能
                     const maxDim = 1200; 
                     let w = img.width, h = img.height;
                     if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
                     else { if (h > maxDim) { w *= maxDim/h; h = maxDim; } }
                     canvas.width = w; canvas.height = h;
                     ctx.drawImage(img, 0, 0, w, h);
+                    // 转换为 Blob
                     canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
                 };
             };
         });
     }
 
-    // --- 渲染逻辑 (UI Layer) ---
+    // --- DOM Rendering ---
     
-    // 初始化应用
+    // 初始化
     async function initApp() {
         try {
             await initDB();
             const allData = await getAllCoffees();
             
-            // 分离数据
+            // 提取元数据
             const meta = allData.find(c => c.id === METADATA_ID);
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
             
-            // 构建渲染列表: Search -> Data Cards -> Add Button
-            allCoffeesCache = allData.filter(c => c.id > 0); // 仅保留 ID > 0 的普通卡片
+            // 提取搜索卡片数据
+            const searchData = allData.find(c => c.id === SEARCH_BG_ID);
             
-            // 1. 渲染搜索卡片
-            renderSearchCard(allData.find(c => c.id === SEARCH_BG_ID));
+            // 提取普通数据
+            allCoffeesCache = allData.filter(c => c.id > 0);
             
-            // 2. 渲染数据卡片
-            allCoffeesCache.forEach(c => renderSingleCard(c));
+            // 构建文档片段 (Batch Insertion)
+            const fragment = document.createDocumentFragment();
             
-            // 3. 渲染添加按钮
-            renderAddButton();
+            // 1. Search Card
+            fragment.appendChild(createCardDOM(searchData || { id: SEARCH_BG_ID }, true));
+            
+            // 2. Data Cards
+            allCoffeesCache.forEach(c => {
+                fragment.appendChild(createCardDOM(c));
+            });
+            
+            // 3. Add Button
+            fragment.appendChild(createAddButtonDOM());
+            
+            scroller.appendChild(fragment);
 
-            // 4. 初始定位 (无缝)
-            scroller.scrollLeft = CARD_FULL_WIDTH; // 跳过搜索卡片
+            // 4. 初始定位 & 显现
+            // 如果有数据，跳过搜索卡片 (384px)
+            if (allCoffeesCache.length >= 0) { // 总是跳过，因为至少有 Add Button
+                scroller.scrollLeft = FIRST_CARD_OFFSET;
+            }
+            
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    scroller.classList.add('ready');
+                    scroller.classList.add('visible');
+                    animateCards(); // 启动动画循环
                 });
             });
 
-            // 5. 启动动画循环
-            requestAnimationFrame(animateCards);
-
         } catch (e) {
-            console.error("Init failed", e);
-            alert("App Init Failed. Please Refresh.");
+            console.error(e);
+            alert("Init Error");
         }
     }
 
-    // 观察器：负责图片懒加载与内存释放
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            const card = entry.target;
-            const img = card.querySelector('.bg-image');
-            const id = parseInt(card.getAttribute('data-id'));
-            
-            if (entry.isIntersecting) {
-                // 进入屏幕：加载图片
-                let dataItem;
-                if (id === SEARCH_BG_ID) {
-                    // 尝试从 DB 重新获取以防缓存丢失
-                    // 简化版：这里直接用缓存如果存在，或者空
-                    // 实际生产中这里应从 allCoffeesCache 或单独的 Map 找 Blob
-                    // 为了演示简单，我们假设 allCoffeesCache 包含了 Blob
-                } else {
-                    dataItem = allCoffeesCache.find(c => c.id === id);
-                }
-                
-                // 注意：由于我们初始化时分离了 SEARCH_BG_ID，需要特殊处理
-                // 生产环境建议：建立统一的 id -> Blob 映射 Map
-                // 这里为了稳健性，我们在 render 时直接赋值了 src 如果有 Blob
-                // 但为了懒加载，我们应该在这里做。
-                // 优化方案：
-                // 如果 img.src 为空且有数据，创建 URL。
-            } else {
-                // 离开屏幕：释放内存 (可选，针对极大量数据)
-                // if (img && img.src && !img.src.includes('data:')) {
-                //     URL.revokeObjectURL(img.src);
-                //     img.removeAttribute('src');
-                // }
-            }
-        });
-    }, { root: scroller, rootMargin: '400px' });
-
-    function renderSingleCard(data, isInsert = false) {
+    // 创建卡片 DOM (工厂函数)
+    function createCardDOM(data, isSearch = false) {
         const wrapper = document.createElement('div');
-        wrapper.className = `card-wrapper roast-${data.roast}`;
+        wrapper.className = isSearch ? 'card-wrapper' : `card-wrapper roast-${data.roast}`;
+        if (isSearch) wrapper.id = 'search-wrapper';
         wrapper.setAttribute('data-id', data.id);
-        
+
         let imgSrc = '';
-        if (data.imageData) imgSrc = URL.createObjectURL(data.imageData);
+        if (data.imageBlob) imgSrc = URL.createObjectURL(data.imageBlob);
+        else if (data.imageData) imgSrc = data.imageData; // 兼容旧版 Base64
 
         const grind = data.grind || '2.0';
 
-        wrapper.innerHTML = `
-            <div class="card">
-                <div class="card-front">
-                    <label class="upload-btn" onclick="event.stopPropagation()">
-                        <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${data.id})">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    </label>
-                    <img id="img-${data.id}" class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
-                    <div class="overlay-gradient"></div>
-                    <div class="card-content">
-                        <h2 id="title-${data.id}">${data.name}</h2>
-                        <p>${data.roast.toUpperCase()}</p>
+        if (isSearch) {
+            // Search Card Structure
+            wrapper.innerHTML = `
+                <div class="card">
+                    <div class="card-front">
+                        <label class="upload-btn" onclick="event.stopPropagation()">
+                            <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${data.id})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        </label>
+                        <img id="img-${data.id}" class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
+                        <div class="overlay-gradient"></div>
+                        <div class="card-content">
+                            <input type="text" class="app-brand-title-input" value="${appMetadata.title}" oninput="updateMetadata('title', this.value)">
+                            <input type="text" class="app-brand-author-input" value="${appMetadata.author}" oninput="updateMetadata('author', this.value)">
+                            <div class="search-bar-wrapper">
+                                <svg class="search-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input type="text" class="search-input-inline" placeholder="SEARCH..." oninput="handleSearch(this.value)">
+                            </div>
+                        </div>
                     </div>
+                    <div class="card-back" style="display:none"></div>
                 </div>
-                <div class="card-back" onclick="event.stopPropagation()">
-                    <div class="title-input-group">
-                        <input class="title-input" type="text" value="${data.name}" oninput="handleInput(${data.id}, 'name', this.value)">
-                    </div>
-                    <div class="data-list">
-                        <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" value="${data.powder}" oninput="handleInput(${data.id}, 'powder', this.value)"><span class="data-unit">g</span></div></div>
-                        <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" value="${data.liquid}" oninput="handleInput(${data.id}, 'liquid', this.value)"><span class="data-unit">g</span></div></div>
-                        <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" value="${data.time}" oninput="handleInput(${data.id}, 'time', this.value)"><span class="data-unit">s</span></div></div>
-                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" value="${grind}" oninput="handleInput(${data.id}, 'grind', this.value)"><span class="data-unit">m</span></div></div>
-                    </div>
-                    <div class="action-row">
-                        <button class="btn-text btn-delete" onclick="deleteCard(${data.id})">Delete</button>
-                        <button class="btn-text" onclick="flipCard(this)">Done</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // 点击翻转逻辑
-        wrapper.onclick = (e) => {
-            if (!e.target.closest('.card-back')) {
-                if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
-                else wrapper.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
-        };
-
-        if (isInsert) {
-            const addBtn = document.getElementById('add-card-wrapper');
-            scroller.insertBefore(wrapper, addBtn);
+            `;
         } else {
-            scroller.appendChild(wrapper);
-        }
-    }
-
-    function renderSearchCard(bgData) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'card-wrapper';
-        wrapper.id = 'search-wrapper';
-        wrapper.setAttribute('data-id', SEARCH_BG_ID);
-        
-        let imgSrc = '';
-        if (bgData && bgData.imageData) imgSrc = URL.createObjectURL(bgData.imageData);
-
-        wrapper.innerHTML = `
-            <div class="card">
-                <div class="card-front">
-                    <label class="upload-btn" onclick="event.stopPropagation()">
-                        <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${SEARCH_BG_ID})">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    </label>
-                    <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
-                    <div class="overlay-gradient"></div>
-                    <div class="card-content">
-                        <input type="text" class="app-brand-title-input" value="${appMetadata.title}" oninput="updateMetadata('title', this.value)">
-                        <input type="text" class="app-brand-author-input" value="${appMetadata.author}" oninput="updateMetadata('author', this.value)">
-                        <div class="search-bar-wrapper">
-                            <svg class="search-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            <input type="text" class="search-input-inline" placeholder="SEARCH..." oninput="handleSearch(this.value)">
+            // Normal Card Structure
+            wrapper.innerHTML = `
+                <div class="card">
+                    <div class="card-front">
+                        <label class="upload-btn" onclick="event.stopPropagation()">
+                            <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${data.id})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        </label>
+                        <img id="img-${data.id}" class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
+                        <div class="overlay-gradient"></div>
+                        <div class="card-content">
+                            <h2 id="title-${data.id}">${data.name}</h2>
+                            <p>${data.roast.toUpperCase()}</p>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="title-input-group">
+                            <input class="title-input" type="text" value="${data.name}" placeholder="Coffee Name" oninput="handleInput(${data.id}, 'name', this.value)">
+                        </div>
+                        <div class="data-list">
+                            <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" value="${data.powder}" oninput="handleInput(${data.id}, 'powder', this.value)"><span class="data-unit">g</span></div></div>
+                            <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" value="${data.liquid}" oninput="handleInput(${data.id}, 'liquid', this.value)"><span class="data-unit">g</span></div></div>
+                            <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" value="${data.time}" oninput="handleInput(${data.id}, 'time', this.value)"><span class="data-unit">s</span></div></div>
+                            <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" value="${grind}" oninput="handleInput(${data.id}, 'grind', this.value)"><span class="data-unit">m</span></div></div>
+                        </div>
+                        <div class="action-row">
+                            <button class="btn-text btn-delete" onclick="deleteCard(${data.id})">Delete</button>
+                            <button class="btn-text" onclick="flipCard(this)">Done</button>
                         </div>
                     </div>
                 </div>
-                <div class="card-back" style="display:none"></div>
-            </div>
-        `;
-        scroller.appendChild(wrapper);
+            `;
+            
+            // 绑定翻转事件 (Inline binding removed to avoid scope issues, using global delegation or wrapper click)
+            // 这里使用闭包绑定是安全的，因为我们在生成 DOM
+            wrapper.onclick = (e) => {
+                // 如果点的是背面，或者是功能控件，不翻转
+                if (e.target.closest('.card-back') || e.target.closest('.upload-btn') || e.target.closest('input')) return;
+                
+                // 如果处于激活状态，翻转；否则滚动
+                if (wrapper.classList.contains('active')) {
+                    wrapper.classList.toggle('flipped');
+                } else {
+                    wrapper.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                }
+            };
+        }
+
+        return wrapper;
     }
 
-    function renderAddButton() {
+    function createAddButtonDOM() {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
         wrapper.id = 'add-card-wrapper';
-        // 添加按钮也是一个卡片
         wrapper.innerHTML = `
             <div class="card-add" onclick="toggleAddMenu(this)">
                 <div class="add-icon" id="add-icon">+</div>
@@ -656,10 +608,9 @@
                 </div>
             </div>
         `;
-        scroller.appendChild(wrapper);
+        return wrapper;
     }
 
-    // --- 交互处理 ---
     function toggleAddMenu(el) {
         const icon = el.querySelector('#add-icon');
         const menu = el.querySelector('#add-menu');
@@ -672,19 +623,58 @@
         }
     }
 
-    function handleImageUpload(e, id) {
-        const file = e.target.files[0];
-        if(!file) return;
-        showToast('PROCESSING...');
-        processImage(file).then(blob => {
-            saveBlob(id, blob);
-        });
+    async function createCard(roast, e) {
+        e.stopPropagation();
+        
+        // Reset Menu
+        const addCard = document.getElementById('add-card-wrapper');
+        addCard.querySelector('.add-menu').classList.remove('show');
+        addCard.querySelector('.add-icon').style.display = 'block';
+
+        const newCoffee = {
+            name: 'New Coffee', 
+            powder: '18', liquid: '36', time: '25', grind: '2.0', 
+            roast: roast, imageBlob: null, created: Date.now()
+        };
+
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        
+        store.add(newCoffee).onsuccess = (evt) => {
+            newCoffee.id = evt.target.result;
+            allCoffeesCache.push(newCoffee);
+            
+            // 核心修复：仅插入节点，不重绘
+            const newCardDOM = createCardDOM(newCoffee);
+            scroller.insertBefore(newCardDOM, addCard);
+            
+            // 滚动到新卡片
+            setTimeout(() => {
+                newCardDOM.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }, 100);
+        };
+    }
+
+    async function deleteCard(id) {
+        if (!confirm('Delete this card?')) return;
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
+            allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
+            // DOM 移除
+            const card = document.querySelector(`.card-wrapper[data-id="${id}"]`);
+            if(card) {
+                // 释放内存
+                const img = card.querySelector('.bg-image');
+                if(img && img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+                card.remove();
+            }
+        };
     }
 
     function handleInput(id, field, val) {
         if(field === 'name') {
-            const titleEl = document.getElementById(`title-${id}`);
-            if(titleEl) titleEl.innerText = val;
+            const h2 = document.getElementById(`title-${id}`);
+            if(h2) h2.innerText = val;
         }
         updateCoffee(id, {[field]: val});
     }
@@ -694,35 +684,44 @@
     }
 
     function handleSearch(query) {
-        const lower = query.toLowerCase();
-        document.querySelectorAll('.card-wrapper[data-id]').forEach(card => {
+        const lower = query.toLowerCase().trim();
+        const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
+        
+        cards.forEach(card => {
             const id = parseInt(card.getAttribute('data-id'));
             if(id === SEARCH_BG_ID) return;
+
             const data = allCoffeesCache.find(c => c.id === id);
             if(data) {
                 const match = !lower || (data.name && data.name.toLowerCase().includes(lower));
                 card.style.display = match ? 'block' : 'none';
             }
         });
+        
+        // 搜索时强制执行一次布局计算，防止 display none 导致的空缺
+        requestAnimationFrame(animateCards);
     }
 
-    // --- 渲染循环 (Animation Loop) ---
+    // --- Animation Loop with Culling (Performance Core) ---
     function animateCards() {
-        // 性能优化：仅计算视口内的卡片
         const center = scroller.scrollLeft + scroller.clientWidth / 2;
         const wrappers = scroller.children;
+        const buffer = 450; // 检查范围 px
         
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
             const rect = card.getBoundingClientRect();
             
-            // 视口外跳过计算
-            if (rect.right < -100 || rect.left > window.innerWidth + 100) continue;
+            // 视口外剔除 (View Culling)
+            if (rect.right < -buffer || rect.left > window.innerWidth + buffer) {
+                // 仅保持基本样式，跳过复杂计算
+                continue; 
+            }
 
             const cardCenter = rect.left + rect.width / 2;
             const dist = Math.abs(window.innerWidth/2 - cardCenter);
             
-            // Search Card Fade Logic
+            // 搜索卡片特效
             if (card.id === 'search-wrapper') {
                 if (dist > 50) {
                     const r = (dist - 50) / 350;
@@ -735,17 +734,14 @@
                 continue;
             }
 
-            // Normal Card Focus Logic
+            // 普通卡片聚焦特效
             if (dist < 400) {
                 const r = dist / 400;
-                // 中心 1.0, 边缘 0.9
                 const s = 1 - r * 0.1; 
-                // 中心不透明, 边缘半透明
                 const o = 1 - r * 0.5;
                 card.style.transform = `scale(${s})`;
                 card.style.opacity = o;
                 
-                // 标记 active 用于点击翻转逻辑
                 if (dist < 150) card.classList.add('active');
                 else {
                     card.classList.remove('active');
@@ -757,12 +753,12 @@
                 card.classList.remove('active');
             }
         }
-
         requestAnimationFrame(animateCards);
     }
 
-    // 启动
+    // Start
     initApp();
+
 </script>
 </body>
 </html>
