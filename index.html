@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V17 Search & Fix</title>
+    <title>Coffee Journal V18 Negative Screen</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -46,64 +46,31 @@
             padding: 0; margin: 0;
         }
 
-        /* --- 搜索栏样式 --- */
-        .search-container {
-            position: absolute;
-            top: 40px; left: 40px; /* 左上角定位 */
-            z-index: 50;
-            display: flex; align-items: center;
-            background: rgba(40, 40, 40, 0.6);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 10px 20px;
-            width: 240px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            transition: width 0.3s ease, background 0.3s;
-        }
-        .search-container:focus-within {
-            width: 300px;
-            background: rgba(50, 50, 50, 0.8);
-            border-color: rgba(255,255,255,0.3);
-        }
-        .search-icon {
-            width: 18px; height: 18px; stroke: rgba(255,255,255,0.5); margin-right: 10px;
-        }
-        .search-input {
-            background: transparent; border: none; outline: none;
-            color: white; font-size: 16px; width: 100%;
-            font-family: inherit; font-weight: 500;
-        }
-        .search-input::placeholder { color: rgba(255,255,255,0.3); }
-
-        /* --- 滚动区域优化 (修复切割问题) --- */
         .card-scroller {
-            position: absolute;
-            top: 50%; left: 0; width: 100%;
-            
-            /* 关键修复：增加高度缓冲区 */
-            height: calc(var(--card-height) + 120px); 
-            transform: translateY(-50%); /* 保持几何中心对齐 */
-            
-            display: flex; gap: 24px;
-            overflow-x: auto; overflow-y: hidden; /* 这里隐藏Y轴没关系，因为高度已经足够大了 */
+            display: flex;
+            gap: 24px;
+            overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            align-items: center; 
+            width: 100%;
+            height: 100%; 
+            align-items: center;
             padding: 0; 
             will-change: scroll-position;
         }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        /* 伪元素占位 */
-        .card-scroller::before, .card-scroller::after {
-            content: ''; display: block;
+        /* 伪元素占位，实现首尾居中 */
+        .card-scroller::before,
+        .card-scroller::after {
+            content: '';
+            display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
             width: calc(50vw - var(--card-width) / 2);
         }
 
-        /* --- 卡片容器 --- */
+        /* --- 通用容器 --- */
         .card-wrapper {
             position: relative;
             flex: 0 0 var(--card-width);
@@ -111,13 +78,14 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            transform: scale(1); opacity: 1;
+            transform: scale(1);
+            opacity: 1;
             transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
             will-change: transform, opacity;
         }
         .card-wrapper.active { z-index: 100; }
 
-        /* --- 卡片本体 --- */
+        /* --- 咖啡卡片 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -133,7 +101,6 @@
             box-shadow: var(--glass-shadow);
         }
 
-        /* --- 流光特效 --- */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -258,24 +225,64 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* --- 搜索页（负一屏） --- */
+        .search-wrapper {
+            /* 与卡片尺寸一致，作为第一个元素 */
+            position: relative;
+            flex: 0 0 var(--card-width);
+            height: var(--card-height);
+            scroll-snap-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .search-box {
+            width: 100%;
+            background: rgba(40, 40, 40, 0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 20px;
+            box-sizing: border-box;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .search-title {
+            font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; text-align: center;
+        }
+
+        .search-input {
+            width: 100%; background: transparent; border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            color: white; font-size: 24px; font-weight: 600;
+            padding: 10px 0; outline: none; text-align: center;
+        }
+        .search-input::placeholder { color: rgba(255,255,255,0.1); }
+
+        .search-hint {
+            font-size: 12px; color: rgba(255,255,255,0.2); text-align: center; margin-top: 20px;
+        }
+
         .status-toast {
             position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px; }
+        .loading-text { 
+            position: absolute; top: 50%; width: 100%; text-align: center; 
+            color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px;
+        }
     </style>
 </head>
 <body>
 
 <div class="status-toast" id="statusToast">SAVED</div>
-
-<!-- 搜索栏 -->
-<div class="search-container">
-    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-    <input type="text" class="search-input" placeholder="Search Coffee..." oninput="handleSearch(this.value)">
-</div>
 
 <div class="app-container">
     <div class="loading-text" id="loading">...</div>
@@ -285,12 +292,12 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V17'; // V17
+    const DB_NAME = 'CoffeeJournalDB_Pro_V18'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
     let imageCache = new Map();
-    let allCoffeesCache = []; // 本地数据缓存，用于搜索过滤
+    let allCoffeesCache = [];
 
     function showToast(msg) {
         const t = document.getElementById('statusToast');
@@ -338,7 +345,6 @@
                 Object.assign(record, data);
                 store.put(record).onsuccess = () => {
                     showToast('SAVED');
-                    // 更新本地缓存，保证搜索数据同步
                     const index = allCoffeesCache.findIndex(c => c.id === id);
                     if(index !== -1) Object.assign(allCoffeesCache[index], data);
                 };
@@ -357,7 +363,7 @@
             };
             store.add(newCoffee).onsuccess = (e) => {
                 newCoffee.id = e.target.result;
-                allCoffeesCache.push(newCoffee); // 同步缓存
+                allCoffeesCache.push(newCoffee);
                 resolve(newCoffee);
             };
         });
@@ -368,7 +374,7 @@
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
             store.delete(id).onsuccess = () => {
-                allCoffeesCache = allCoffeesCache.filter(c => c.id !== id); // 同步缓存
+                allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
                 resolve();
             };
         });
@@ -400,10 +406,11 @@
     const scroller = document.getElementById('scroller');
     const loading = document.getElementById('loading');
     
+    // 观察器
     const cardObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const cardWrapper = entry.target;
-            if(cardWrapper.id === 'add-card-wrapper') return;
+            if(cardWrapper.id === 'add-card-wrapper' || cardWrapper.id === 'search-panel') return;
 
             const img = cardWrapper.querySelector('.bg-image');
             const id = parseInt(cardWrapper.getAttribute('data-id'));
@@ -427,10 +434,10 @@
     async function initApp() {
         try {
             await initDB();
-            allCoffeesCache = await getAllCoffees(); // 加载全部数据到内存
+            allCoffeesCache = await getAllCoffees();
             
             loading.style.display = 'none';
-            renderCardList(allCoffeesCache); // 渲染列表
+            renderCardList(allCoffeesCache, true); // true = 首次加载
             
             requestAnimationFrame(animateCards);
         } catch (error) {
@@ -443,24 +450,54 @@
     function handleSearch(query) {
         const lowerQuery = query.toLowerCase().trim();
         if (!lowerQuery) {
-            renderCardList(allCoffeesCache);
+            renderCardList(allCoffeesCache); // 恢复显示所有
             return;
         }
         
         const filtered = allCoffeesCache.filter(c => 
             (c.name && c.name.toLowerCase().includes(lowerQuery))
         );
-        renderCardList(filtered);
+        // 搜索时不需要滚动到第2个，显示第1个结果即可
+        renderCardList(filtered, false); 
     }
 
-    // 通用渲染列表函数
-    function renderCardList(list) {
+    // 渲染列表函数 (核心修改：添加搜索栏)
+    function renderCardList(list, isInitialLoad = false) {
         scroller.innerHTML = ''; // 清空
-        list.forEach(renderCard); // 渲染数据卡片
-        renderAddButton(); // 始终在末尾添加新建按钮
         
-        // 重新触发动画计算
-        requestAnimationFrame(animateCards);
+        // 1. 渲染“负一屏”搜索栏
+        renderSearchPanel();
+
+        // 2. 渲染数据卡片
+        list.forEach(renderCard); 
+        
+        // 3. 渲染添加按钮
+        renderAddButton();
+        
+        // 4. 如果是首次加载，自动滚动到第一张咖啡卡片（跳过搜索栏）
+        if (isInitialLoad && list.length > 0) {
+            setTimeout(() => {
+                const firstCard = scroller.querySelector('.card-wrapper[data-id]');
+                if (firstCard) {
+                    firstCard.scrollIntoView({ inline: 'center' });
+                }
+            }, 50); // 微小延迟确保渲染完成
+        }
+    }
+
+    // 渲染搜索面板
+    function renderSearchPanel() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'search-wrapper';
+        wrapper.id = 'search-panel';
+        wrapper.innerHTML = `
+            <div class="search-box">
+                <div class="search-title">Search</div>
+                <input type="text" class="search-input" placeholder="Type name..." oninput="handleSearch(this.value)">
+                <div class="search-hint">Swipe left to browse collection</div>
+            </div>
+        `;
+        scroller.appendChild(wrapper);
     }
 
     function renderCard(coffee) {
@@ -585,14 +622,13 @@
         icon.style.display = 'block';
 
         const newCoffee = await addCoffee(roast);
-        renderCardList(allCoffeesCache); // 重绘列表以显示新卡片
+        renderCardList(allCoffeesCache); 
         
-        // 滚动到倒数第二张（新添加的卡片）
+        // 滚动到新卡片
         setTimeout(() => {
-            const cards = scroller.querySelectorAll('.card-wrapper');
-            if(cards.length >= 2) {
-                const newCard = cards[cards.length - 2];
-                newCard.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
+            if(cards.length > 0) {
+                cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', inline: 'center' });
             }
         }, 100);
     }
@@ -618,7 +654,7 @@
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
-            // 重新渲染列表
+            // 重新渲染列表（包含更新缓存）
             renderCardList(allCoffeesCache);
         }
     }
@@ -638,7 +674,7 @@
         const scrollerRect = scroller.getBoundingClientRect();
         const centerPoint = scrollerRect.left + scrollerRect.width / 2;
 
-        const enableEffect = cards.length > 4; 
+        const enableEffect = cards.length > 5; // 提高一点阈值
 
         cards.forEach(card => {
             if (!enableEffect) {
