@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V23 Final</title>
+    <title>Coffee Journal V24 Zero Shift</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -63,7 +63,16 @@
             align-items: center;
             padding: 0; 
             will-change: scroll-position;
+
+            /* 核心修复：初始透明度为0，防止看到错位 */
+            opacity: 0; 
+            transition: opacity 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
+        /* 当 JS 准备好位置后，添加此类显示卡片 */
+        .card-scroller.loaded {
+            opacity: 1;
+        }
+
         .card-scroller::-webkit-scrollbar { display: none; }
 
         .card-scroller::before,
@@ -105,7 +114,6 @@
             box-shadow: var(--glass-shadow);
         }
 
-        /* 流光特效 */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -120,7 +128,6 @@
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
         .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
         
-        /* 统一渐变 */
         .overlay-gradient {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.95) 100%);
@@ -129,7 +136,7 @@
 
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            z-index: 5; /* 允许点击内部输入框 */
+            pointer-events: none; z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; 
             padding-bottom: 50px; align-items: center; text-align: center;
         }
@@ -137,32 +144,11 @@
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
             line-height: 1.1; letter-spacing: -0.5px;
             text-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            pointer-events: none;
         }
         .card-content p { 
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
             color: rgba(255,255,255,0.7); text-transform: uppercase; 
-            pointer-events: none;
         }
-
-        /* --- 搜索栏样式 (融合在卡片内) --- */
-        .search-bar-wrapper {
-            display: flex; align-items: center; justify-content: center;
-            margin-top: 10px;
-            opacity: 0.7; transition: opacity 0.3s;
-        }
-        .search-bar-wrapper:focus-within { opacity: 1; }
-        
-        .search-icon-small {
-            width: 14px; height: 14px; stroke: rgba(255,255,255,0.8); margin-right: 8px;
-        }
-        .search-input-inline {
-            background: transparent; border: none; outline: none;
-            color: rgba(255,255,255,0.9); font-size: 13px; letter-spacing: 2px; font-weight: 500;
-            text-transform: uppercase; width: 100px;
-            font-family: inherit;
-        }
-        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
 
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
@@ -252,6 +238,22 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* 搜索样式融合 */
+        .search-bar-wrapper {
+            display: flex; align-items: center; justify-content: center; margin-top: 10px;
+            opacity: 0.7; transition: opacity 0.3s;
+        }
+        .search-bar-wrapper:focus-within { opacity: 1; }
+        .search-icon-small {
+            width: 14px; height: 14px; stroke: rgba(255,255,255,0.8); margin-right: 8px;
+        }
+        .search-input-inline {
+            background: transparent; border: none; outline: none;
+            color: rgba(255,255,255,0.9); font-size: 13px; letter-spacing: 2px; font-weight: 500;
+            text-transform: uppercase; width: 100px; font-family: inherit;
+        }
+        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
+
         .status-toast {
             position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
@@ -273,10 +275,10 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V23'; // V23 Final
+    const DB_NAME = 'CoffeeJournalDB_Pro_V24'; // V24 Zero Shift
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
-    const SEARCH_BG_ID = 0; // 搜索背景图ID
+    const SEARCH_BG_ID = 0; 
     let db;
     let imageCache = new Map();
     let allCoffeesCache = [];
@@ -469,29 +471,27 @@
 
     function renderCardList(list, isInitialLoad = false) {
         scroller.innerHTML = '';
-        
-        // 渲染搜索卡片 (ID 0) - 结构与普通卡片保持一致
         renderSearchCard();
-
-        // 渲染咖啡列表
         list.forEach(renderCard); 
-        
-        // 渲染添加按钮
         renderAddButton();
         
-        // 初始隐藏搜索卡片
+        // 核心修复：初始静默跳转
         if (isInitialLoad) {
-            setTimeout(() => {
-                if (scroller.scrollTo) {
-                    scroller.scrollTo({ left: 384, behavior: 'instant' }); 
-                } else {
-                    scroller.scrollLeft = 384;
-                }
-            }, 10);
+            // 计算跳转距离：卡片宽 360 + 间距 24 = 384
+            const targetScroll = 384; 
+            
+            // 立即设置位置 (用户此时还看不到，因为 opacity 是 0)
+            scroller.scrollLeft = targetScroll;
+
+            // 下一帧显示出来
+            requestAnimationFrame(() => {
+                scroller.classList.add('loaded');
+            });
+        } else {
+            scroller.classList.add('loaded');
         }
     }
 
-    // 渲染搜索卡片：结构完全复刻普通卡片
     function renderSearchCard() {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -504,16 +504,12 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <!-- 封面上传 -->
                     <label class="upload-btn" onclick="event.stopPropagation()">
                         <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${SEARCH_BG_ID})">
                         <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                     </label>
-                    
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${initialSrc}" style="opacity: ${initialOpacity}">
                     <div class="overlay-gradient"></div>
-                    
-                    <!-- 搜索内容区：结构模仿 .card-content -->
                     <div class="card-content">
                         <h2>LIBRARY</h2>
                         <div class="search-bar-wrapper">
@@ -522,7 +518,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- 搜索卡片无背面 -->
                 <div class="card-back" style="display:none;"></div>
             </div>
         `;
@@ -609,13 +604,7 @@
             }
         };
 
-        const addBtn = document.getElementById('add-card-wrapper');
-        if(addBtn) {
-            scroller.insertBefore(wrapper, addBtn);
-        } else {
-            scroller.appendChild(wrapper);
-        }
-        
+        scroller.appendChild(wrapper);
         cardObserver.observe(wrapper);
     }
 
@@ -658,15 +647,11 @@
         icon.style.display = 'block';
 
         const newCoffee = await addCoffee(roast);
-        // 不再重绘整个列表，而是单独插入新卡片
         renderCard(newCoffee);
         
         setTimeout(() => {
             const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
             if(cards.length > 0) {
-                // 滚动到新卡片（即倒数第二个，最后一个是 add-wrapper）
-                // 此时 DOM 顺序：Search -> Card1 -> Card2 -> NewCard -> AddBtn
-                // 我们刚刚插入了 NewCard，它现在是 cards NodeList 中的最后一个
                 cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', inline: 'center' });
             }
         }, 100);
@@ -693,7 +678,6 @@
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
-            // 这里删除需要重绘，因为涉及到索引变化
             renderCardList(allCoffeesCache);
         }
     }
@@ -720,10 +704,11 @@
             const cardCenter = rect.left + rect.width / 2;
             const distance = Math.abs(centerPoint - cardCenter);
             
-            // 搜索卡片特效
+            // 搜索卡片特效 (向左淡入淡出)
             if (card.id === 'search-wrapper') {
                 let searchScale = 1;
                 let searchOpacity = 1;
+                // 384 是初始位置，往右滑(distance变大)则淡出
                 if (distance > 50) {
                     const ratio = (distance - 50) / 350; 
                     searchScale = Math.max(0.85, 1 - ratio * 0.15);
