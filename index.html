@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V45 Stable</title>
+    <title>BeanDance V46 Production Golden Master</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -38,6 +38,7 @@
             user-select: none; -webkit-user-select: none;
             -webkit-font-smoothing: antialiased;
             color: #fff;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .app-container {
@@ -65,7 +66,6 @@
             
             will-change: scroll-position;
             
-            /* 初始隐身，防止闪烁 */
             opacity: 0; 
             transition: opacity 0.6s ease-out;
         }
@@ -137,38 +137,21 @@
         }
         .card-content input { pointer-events: auto; }
 
-        /* --- 品牌排版 (V39 复刻版) --- */
+        /* 品牌排版 */
         .app-brand-title-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; width: 100%; text-align: center; padding: 0;
-            
-            /* 紧凑大字 */
-            font-size: 42px; 
-            font-weight: 800; 
-            line-height: 0.9; 
-            letter-spacing: -1.5px;
-            margin: 0 0 2px 0; /* 紧贴下方 */
-            
+            font-family: inherit; margin: 0 0 2px 0; text-align: center; width: 100%;
+            font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px;
             background: linear-gradient(135deg, #fff 0%, #dcdcdc 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 4px 20px rgba(0,0,0,0.3); caret-color: #fff;
         }
-        
         .app-brand-author-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; width: 100%; text-align: center; padding: 0;
-            
-            /* 微型大写宽间距 */
-            font-size: 10px; 
-            font-weight: 600; 
-            letter-spacing: 6px; 
-            text-transform: uppercase; 
-            color: rgba(255,255,255,0.5);
-            
-            margin: 4px 0 30px 0; /* 下方留白 */
-            caret-color: #fff;
+            font-family: inherit; margin: 4px 0 30px 0; text-align: center; width: 100%;
+            font-size: 10px; font-weight: 600; letter-spacing: 6px; 
+            color: rgba(255,255,255,0.5); text-transform: uppercase; caret-color: #fff;
         }
-        /* ------------------------ */
 
         .card-content h2 { 
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
@@ -180,7 +163,7 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* --- 智能上传按钮 (无背景) --- */
+        /* 智能上传按钮 (无衬底) */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
@@ -197,11 +180,10 @@
         }
         .upload-btn:active svg { transform: scale(0.9); }
 
-        /* 有图 -> 隐藏 */
+        /* 状态: 有图片时 -> 隐形 */
         .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(1); }
-        /* 唤醒 -> 显示 */
+        /* 状态: 激活显示时 -> 显现 */
         .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); }
-
 
         .card-back {
             transform: rotateY(180deg); z-index: 1;
@@ -303,43 +285,35 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        
-        #error-layer {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: #000; color: #ff5555; z-index: 10000;
-            display: none; justify-content: center; align-items: center; font-family: monospace; padding: 20px;
-        }
     </style>
 </head>
 <body>
 
 <div class="status-toast" id="statusToast">SAVED</div>
-<div id="error-layer"></div>
 
 <div class="app-container">
-    <div class="card-scroller" id="scroller"></div>
+    <div class="card-scroller" id="scroller">
+        <!-- JS 动态填充 -->
+    </div>
 </div>
 
 <script>
-    // --- Constants ---
-    const DB_NAME = 'BeanDance_V45_Stable'; // Fresh Database
+    const DB_NAME = 'BeanDance_V46_GM'; // Golden Master
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
     const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
     
-    // --- State ---
     let db;
     let allCoffeesCache = [];
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     let debounceMap = new Map();
     let revealTimer; 
+    let isAnimating = false;
     
-    // --- UI Refs ---
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
-    const errorLayer = document.getElementById('error-layer');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -347,13 +321,7 @@
         setTimeout(() => toast.style.opacity = '0', 1500);
     }
 
-    function showError(msg) {
-        // Failsafe: if error occurs, show msg but also try to show scroller
-        scroller.classList.add('visible'); 
-        console.error(msg);
-    }
-
-    // --- Database ---
+    // --- DB ---
     function initDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -376,6 +344,7 @@
         });
     }
 
+    // --- Fix: Independent Debounce per ID ---
     function scheduleSave(key, fn) {
         if (debounceMap.has(key)) clearTimeout(debounceMap.get(key));
         const timer = setTimeout(() => {
@@ -386,20 +355,24 @@
         debounceMap.set(key, timer);
     }
 
-    function updateMetadata(field, value) {
+    function updateMetadata(field, value, immediate = false) {
         appMetadata[field] = value;
-        scheduleSave('meta', () => {
+        if(immediate) {
             saveToDB(METADATA_ID, appMetadata);
-        });
+        } else {
+            scheduleSave('meta', () => saveToDB(METADATA_ID, appMetadata));
+        }
     }
 
-    function updateCoffee(id, field, value) {
+    function updateCoffee(id, field, value, immediate = false) {
         const item = allCoffeesCache.find(c => c.id === id);
         if (item) {
             item[field] = value;
-            scheduleSave(`coffee-${id}`, () => {
+            if(immediate) {
                 saveToDB(id, item);
-            });
+            } else {
+                scheduleSave(`coffee-${id}`, () => saveToDB(id, item));
+            }
         }
     }
 
@@ -407,16 +380,18 @@
         try {
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
-            const safeData = structuredClone(data);
+            
+            // Fix: No structuredClone, use shallow copy for compatibility
+            const safeData = { ...data };
             
             if (id === METADATA_ID || id === SEARCH_BG_ID) {
                 store.get(id).onsuccess = (e) => {
                     const record = e.target.result;
-                    if(record) store.put({ ...record, ...safeData });
-                    else store.add({ id: id, ...safeData });
+                    if(record) store.put({ ...record, ...safeData }).onsuccess = () => showToast('SAVED');
+                    else store.add({ id: id, ...safeData }).onsuccess = () => showToast('SAVED');
                 };
             } else {
-                store.put(safeData);
+                store.put(safeData).onsuccess = () => showToast('SAVED');
             }
         } catch(e) { console.error(e); }
     }
@@ -434,6 +409,7 @@
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
             
+            // Reset Add Menu
             const addCard = document.querySelector('.card-add');
             if(addCard) {
                 addCard.querySelector('.add-menu').classList.remove('show');
@@ -443,6 +419,7 @@
     }
 
     async function deleteCard(id) {
+        // Fix: Confirm handled by event listener
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
             allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
@@ -462,6 +439,7 @@
         processImage(file).then(blob => {
             if (id === SEARCH_BG_ID) {
                 saveToDB(SEARCH_BG_ID, { imageData: blob });
+                // Update Search UI
                 const wrapper = document.getElementById('search-wrapper');
                 const img = wrapper.querySelector('.bg-image');
                 if(img) {
@@ -476,6 +454,7 @@
                 if(item) {
                     item.imageData = blob;
                     saveToDB(id, item);
+                    // Update UI
                     const wrapper = document.querySelector(`.card-wrapper[data-id="${id}"]`);
                     if(wrapper) {
                         const img = wrapper.querySelector('.bg-image');
@@ -515,7 +494,35 @@
         });
     }
 
+    // --- UI Logic ---
     function setupDelegation() {
+        // Change event (Immediate Save)
+        scroller.addEventListener('change', (e) => {
+            const t = e.target;
+            const wrapper = t.closest('.card-wrapper');
+            
+            // File
+            if(t.type === 'file') {
+                handleImageUpload(e, parseInt(wrapper.dataset.id));
+                return;
+            }
+
+            // Text Inputs (on blur/enter/change) -> Immediate Save
+            if(!wrapper) return;
+            const id = parseInt(wrapper.dataset.id);
+            
+            if (t.classList.contains('app-brand-title-input')) return updateMetadata('title', t.value, true);
+            if (t.classList.contains('app-brand-author-input')) return updateMetadata('author', t.value, true);
+
+            if(id > 0) {
+                if(t.classList.contains('title-input')) {
+                    updateCoffee(id, 'name', t.value, true);
+                } else if(t.dataset.field) {
+                    updateCoffee(id, t.dataset.field, t.value, true);
+                }
+            }
+        });
+
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
@@ -539,7 +546,7 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // Smart Upload Logic
+            // Upload Button Logic
             if (t.closest('.upload-btn')) {
                 if (wrapper.classList.contains('has-image')) {
                     if (wrapper.classList.contains('reveal-icon')) {
@@ -550,6 +557,7 @@
                         document.querySelectorAll('.reveal-icon').forEach(el => {
                             if(el !== wrapper) el.classList.remove('reveal-icon');
                         });
+                        
                         if (revealTimer) clearTimeout(revealTimer);
                         revealTimer = setTimeout(() => wrapper.classList.remove('reveal-icon'), 2000);
                         return;
@@ -562,7 +570,7 @@
 
             if (t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
-                if (confirm('Delete?')) deleteCard(id);
+                if (confirm('Delete this card?')) deleteCard(id); // Single confirm
                 return;
             }
 
@@ -571,13 +579,16 @@
                 return;
             }
 
+            // Flip Logic (Skip search card)
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
+                
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
         });
 
+        // Inputs
         scroller.addEventListener('input', (e) => {
             const input = e.target;
             const wrapper = input.closest('.card-wrapper');
@@ -599,14 +610,6 @@
                 } else if(input.dataset.field) {
                     updateCoffee(id, input.dataset.field, input.value);
                 }
-            }
-        });
-
-        scroller.addEventListener('change', (e) => {
-            if(e.target.type === 'file') {
-                const wrapper = e.target.closest('.card-wrapper');
-                const id = parseInt(wrapper.dataset.id);
-                handleImageUpload(e, id);
             }
         });
     }
@@ -634,7 +637,8 @@
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     scroller.classList.add('visible');
-                    animateCards();
+                    // Fix: Singleton Loop
+                    if(!isAnimating) animateCards();
                 });
             });
 
@@ -644,10 +648,12 @@
             setTimeout(() => scroller.classList.add('visible'), 500);
 
         } catch (e) {
-            showError("Load Error. Please refresh.");
+            console.error(e);
+            alert("Init Error");
         }
     }
 
+    // Fix: Remove recursive loop start
     function handleSearch(query) {
         const lower = query.toLowerCase().trim();
         document.querySelectorAll('.card-wrapper[data-id]').forEach(card => {
@@ -659,7 +665,6 @@
                 card.style.display = match ? 'block' : 'none';
             }
         });
-        requestAnimationFrame(animateCards);
     }
 
     function renderSearchCard(data) {
@@ -757,6 +762,7 @@
     }
 
     function animateCards() {
+        isAnimating = true;
         const wrappers = scroller.children;
         const buffer = 450;
         
