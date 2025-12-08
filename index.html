@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V16 Locked Center</title>
+    <title>Coffee Journal V17 Search & Fix</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -32,58 +32,73 @@
             margin: 0; padding: 0;
             background-color: var(--bg-color);
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-            width: 100vw; height: 100vh;
-            overflow: hidden; /* 禁止页面级滚动 */
+            width: 100vw; height: 100dvh;
+            overflow: hidden;
             user-select: none; -webkit-user-select: none;
             -webkit-font-smoothing: antialiased;
             color: #fff;
         }
 
-        /* --- 核心布局：绝对几何锁定 --- */
         .app-container {
             position: fixed; inset: 0; z-index: 1;
-            /* 这里的 Flex 只负责水平方向 */
-            display: block; 
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             padding: 0; margin: 0;
         }
 
-        .card-scroller {
-            /* 
-               【关键修改】
-               1. 绝对定位：脱离文档流，不受其他元素干扰
-               2. top: 50%：定位于屏幕垂直正中
-               3. height: 580px：高度锁定为卡片高度
-               4. translateY(-50%)：将自身向上拉回一半高度，实现数学上的绝对居中
-            */
+        /* --- 搜索栏样式 --- */
+        .search-container {
             position: absolute;
-            top: 50%;
-            left: 0;
-            width: 100%;
-            height: var(--card-height); 
-            transform: translateY(-50%);
-            
-            /* 微调：因为状态栏占用了顶部空间，视觉中心通常需要稍微上移一点点 */
-            margin-top: -10px; 
+            top: 40px; left: 40px; /* 左上角定位 */
+            z-index: 50;
+            display: flex; align-items: center;
+            background: rgba(40, 40, 40, 0.6);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 10px 20px;
+            width: 240px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: width 0.3s ease, background 0.3s;
+        }
+        .search-container:focus-within {
+            width: 300px;
+            background: rgba(50, 50, 50, 0.8);
+            border-color: rgba(255,255,255,0.3);
+        }
+        .search-icon {
+            width: 18px; height: 18px; stroke: rgba(255,255,255,0.5); margin-right: 10px;
+        }
+        .search-input {
+            background: transparent; border: none; outline: none;
+            color: white; font-size: 16px; width: 100%;
+            font-family: inherit; font-weight: 500;
+        }
+        .search-input::placeholder { color: rgba(255,255,255,0.3); }
 
-            display: flex;
-            gap: 24px;
-            overflow-x: auto;
-            overflow-y: hidden; /* 严禁垂直滚动 */
+        /* --- 滚动区域优化 (修复切割问题) --- */
+        .card-scroller {
+            position: absolute;
+            top: 50%; left: 0; width: 100%;
+            
+            /* 关键修复：增加高度缓冲区 */
+            height: calc(var(--card-height) + 120px); 
+            transform: translateY(-50%); /* 保持几何中心对齐 */
+            
+            display: flex; gap: 24px;
+            overflow-x: auto; overflow-y: hidden; /* 这里隐藏Y轴没关系，因为高度已经足够大了 */
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            align-items: center;
+            align-items: center; 
             padding: 0; 
-            
             will-change: scroll-position;
         }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        /* 伪元素占位，实现首尾居中 */
-        .card-scroller::before,
-        .card-scroller::after {
-            content: '';
-            display: block;
+        /* 伪元素占位 */
+        .card-scroller::before, .card-scroller::after {
+            content: ''; display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
             width: calc(50vw - var(--card-width) / 2);
         }
@@ -96,14 +111,13 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            transform: scale(1);
-            opacity: 1;
+            transform: scale(1); opacity: 1;
             transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
             will-change: transform, opacity;
         }
         .card-wrapper.active { z-index: 100; }
 
-        /* --- 卡片结构 --- */
+        /* --- 卡片本体 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -119,7 +133,7 @@
             box-shadow: var(--glass-shadow);
         }
 
-        /* --- 呼吸流光特效 --- */
+        /* --- 流光特效 --- */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -175,11 +189,9 @@
         }
 
         .title-input-group {
-            margin-bottom: 30px; 
-            text-align: center;
+            margin-bottom: 30px; text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 15px;
-            display: flex; align-items: center; justify-content: center; min-height: 40px; 
+            padding-bottom: 15px; display: flex; align-items: center; justify-content: center; min-height: 40px; 
         }
         .title-input {
             width: 100%; background: transparent; border: none;
@@ -194,9 +206,7 @@
             padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.08); height: 24px;
         }
         .data-label { font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px; }
-        
         .data-value-group { display: flex; align-items: center; justify-content: flex-end; width: 140px; }
-        
         .data-input {
             flex: 1; background: transparent; border: none; text-align: right; 
             color: white; font-size: 20px; font-weight: 600; outline: none; 
@@ -204,7 +214,6 @@
             padding: 0; margin: 0;
         }
         .data-input::placeholder { color: rgba(255,255,255,0.2); }
-        
         .data-unit {
             font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
             width: 25px; text-align: right; padding-left: 0; margin-left: 5px; flex-shrink: 0; 
@@ -255,15 +264,18 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        .loading-text { 
-            position: absolute; top: 50%; width: 100%; text-align: center; 
-            color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px;
-        }
+        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px; }
     </style>
 </head>
 <body>
 
 <div class="status-toast" id="statusToast">SAVED</div>
+
+<!-- 搜索栏 -->
+<div class="search-container">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input type="text" class="search-input" placeholder="Search Coffee..." oninput="handleSearch(this.value)">
+</div>
 
 <div class="app-container">
     <div class="loading-text" id="loading">...</div>
@@ -273,11 +285,12 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V16'; // V16 Locked Center
+    const DB_NAME = 'CoffeeJournalDB_Pro_V17'; // V17
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
-    let imageCache = new Map(); 
+    let imageCache = new Map();
+    let allCoffeesCache = []; // 本地数据缓存，用于搜索过滤
 
     function showToast(msg) {
         const t = document.getElementById('statusToast');
@@ -323,7 +336,12 @@
             const record = e.target.result;
             if(record) {
                 Object.assign(record, data);
-                store.put(record).onsuccess = () => showToast('SAVED');
+                store.put(record).onsuccess = () => {
+                    showToast('SAVED');
+                    // 更新本地缓存，保证搜索数据同步
+                    const index = allCoffeesCache.findIndex(c => c.id === id);
+                    if(index !== -1) Object.assign(allCoffeesCache[index], data);
+                };
             }
         };
     }
@@ -334,16 +352,12 @@
             const store = tx.objectStore(STORE_NAME);
             const newCoffee = {
                 name: 'New Coffee', 
-                powder: '18', 
-                liquid: '36', 
-                time: '25',   
-                grind: '2.0', 
-                roast: roastType, 
-                imageData: null, 
-                created: Date.now()
+                powder: '18', liquid: '36', time: '25', grind: '2.0', 
+                roast: roastType, imageData: null, created: Date.now()
             };
             store.add(newCoffee).onsuccess = (e) => {
                 newCoffee.id = e.target.result;
+                allCoffeesCache.push(newCoffee); // 同步缓存
                 resolve(newCoffee);
             };
         });
@@ -353,7 +367,10 @@
         return new Promise((resolve) => {
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
-            store.delete(id).onsuccess = () => resolve();
+            store.delete(id).onsuccess = () => {
+                allCoffeesCache = allCoffeesCache.filter(c => c.id !== id); // 同步缓存
+                resolve();
+            };
         });
     }
 
@@ -368,20 +385,18 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     const maxDim = 1200; 
-                    let width = img.width;
-                    let height = img.height;
+                    let width = img.width; let height = img.height;
                     if (width > height) { if (width > maxDim) { height *= maxDim / width; width = maxDim; } } 
                     else { if (height > maxDim) { width *= maxDim / height; height = maxDim; } }
-                    canvas.width = width;
-                    canvas.height = height;
+                    canvas.width = width; canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                    resolve(dataUrl);
+                    resolve(canvas.toDataURL('image/jpeg', 0.85));
                 };
             };
         });
     }
 
+    // --- 核心逻辑 ---
     const scroller = document.getElementById('scroller');
     const loading = document.getElementById('loading');
     
@@ -412,19 +427,40 @@
     async function initApp() {
         try {
             await initDB();
-            const coffees = await getAllCoffees();
+            allCoffeesCache = await getAllCoffees(); // 加载全部数据到内存
             
             loading.style.display = 'none';
-
-            coffees.forEach(renderCard);
-            renderAddButton();
+            renderCardList(allCoffeesCache); // 渲染列表
             
             requestAnimationFrame(animateCards);
-
         } catch (error) {
             console.error(error);
             loading.innerText = "Error Loading Data";
         }
+    }
+
+    // 搜索逻辑
+    function handleSearch(query) {
+        const lowerQuery = query.toLowerCase().trim();
+        if (!lowerQuery) {
+            renderCardList(allCoffeesCache);
+            return;
+        }
+        
+        const filtered = allCoffeesCache.filter(c => 
+            (c.name && c.name.toLowerCase().includes(lowerQuery))
+        );
+        renderCardList(filtered);
+    }
+
+    // 通用渲染列表函数
+    function renderCardList(list) {
+        scroller.innerHTML = ''; // 清空
+        list.forEach(renderCard); // 渲染数据卡片
+        renderAddButton(); // 始终在末尾添加新建按钮
+        
+        // 重新触发动画计算
+        requestAnimationFrame(animateCards);
     }
 
     function renderCard(coffee) {
@@ -437,7 +473,6 @@
 
         const initialSrc = imageCache.get(coffee.id) || '';
         const initialOpacity = initialSrc ? '1' : '0';
-
         const grindValue = (coffee.grind === undefined || coffee.grind === null) ? '2.0' : coffee.grind;
 
         wrapper.innerHTML = `
@@ -507,13 +542,7 @@
             }
         };
 
-        const addBtn = document.getElementById('add-card-wrapper');
-        if(addBtn) {
-            scroller.insertBefore(wrapper, addBtn);
-        } else {
-            scroller.appendChild(wrapper);
-        }
-        
+        scroller.appendChild(wrapper);
         cardObserver.observe(wrapper);
     }
 
@@ -556,12 +585,15 @@
         icon.style.display = 'block';
 
         const newCoffee = await addCoffee(roast);
-        renderCard(newCoffee);
+        renderCardList(allCoffeesCache); // 重绘列表以显示新卡片
         
+        // 滚动到倒数第二张（新添加的卡片）
         setTimeout(() => {
-            const el = document.getElementById(`card-wrapper-${newCoffee.id}`);
-            el.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            requestAnimationFrame(animateCards);
+            const cards = scroller.querySelectorAll('.card-wrapper');
+            if(cards.length >= 2) {
+                const newCard = cards[cards.length - 2];
+                newCard.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
         }, 100);
     }
 
@@ -586,11 +618,8 @@
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
-            imageCache.delete(id);
-            const wrapper = document.getElementById(`card-wrapper-${id}`);
-            cardObserver.unobserve(wrapper);
-            wrapper.style.opacity = '0';
-            setTimeout(() => { wrapper.remove(); animateCards(); }, 300);
+            // 重新渲染列表
+            renderCardList(allCoffeesCache);
         }
     }
 
