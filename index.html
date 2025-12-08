@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V37 Production</title>
+    <title>BeanDance V38 Typography</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -139,19 +139,39 @@
             padding-bottom: 50px; align-items: center; text-align: center;
         }
 
+        /* --- 品牌信息 (优化排版) --- */
         .app-brand-title-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 0; text-align: center; width: 100%; pointer-events: auto;
-            font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -1px;
+            font-family: inherit; width: 100%; pointer-events: auto;
+            text-align: center; padding: 0;
+            
+            /* 字体加大，间距收紧 */
+            font-size: 42px; 
+            font-weight: 800; 
+            line-height: 1; 
+            letter-spacing: -1.5px; 
+            margin-bottom: 2px; /* 拉近与作者的距离 */
+
             background: linear-gradient(135deg, #fff 0%, #dcdcdc 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 4px 20px rgba(0,0,0,0.3); caret-color: #fff;
         }
+        
         .app-brand-author-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 6px 0 20px 0; text-align: center; width: 100%; pointer-events: auto;
-            font-size: 10px; letter-spacing: 4px; font-weight: 600;
-            color: rgba(255,255,255,0.5); text-transform: uppercase; caret-color: #fff;
+            font-family: inherit; width: 100%; pointer-events: auto;
+            text-align: center; padding: 0;
+
+            /* 字体缩小，间距拉宽，形成高级感对比 */
+            font-size: 11px; 
+            font-weight: 600; 
+            letter-spacing: 6px; 
+            text-transform: uppercase; 
+            color: rgba(255,255,255,0.5); 
+            
+            margin-top: 0; 
+            margin-bottom: 35px; /* 与搜索框的距离 */
+            caret-color: #fff;
         }
 
         .card-content h2 { 
@@ -163,6 +183,24 @@
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
             color: rgba(255,255,255,0.7); text-transform: uppercase; pointer-events: none;
         }
+
+        /* 搜索栏 */
+        .search-bar-wrapper {
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
+        }
+        .search-bar-wrapper:focus-within { opacity: 1; }
+        .search-icon-small {
+            width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px;
+        }
+        .search-input-inline {
+            background: transparent; border: none; outline: none;
+            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
+            text-transform: uppercase; width: 120px;
+            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
+            text-align: center; padding-bottom: 4px;
+        }
+        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
 
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
@@ -252,34 +290,6 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 搜索栏样式 */
-        .search-bar-wrapper {
-            display: flex; align-items: center; justify-content: center; margin-top: 10px;
-            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
-        }
-        .search-bar-wrapper:focus-within { opacity: 1; }
-        .search-icon-small { width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px; }
-        .search-input-inline {
-            background: transparent; border: none; outline: none;
-            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
-            text-transform: uppercase; width: 120px;
-            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
-            text-align: center; padding-bottom: 4px;
-        }
-        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
-        
-        .system-actions {
-            margin-top: 20px; display: flex; gap: 15px; opacity: 0; transition: opacity 0.3s;
-            pointer-events: none; justify-content: center;
-        }
-        .card-front:hover .system-actions, .card-front:active .system-actions { opacity: 0.8; pointer-events: auto; }
-        .sys-btn {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 50%; width: 36px; height: 36px; display: flex; justify-content: center; align-items: center;
-            cursor: pointer; backdrop-filter: blur(10px);
-        }
-        .sys-btn svg { width: 16px; height: 16px; stroke: white; }
-
         .status-toast {
             position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
@@ -299,403 +309,329 @@
 </div>
 
 <script>
-    /**
-     * BeanDance V37
-     * Fixes:
-     * 1. Blob Persistence (using structuredClone instead of JSON serialization)
-     * 2. Race Condition (using per-entity debounce)
-     */
-
-    const DB_NAME = 'BeanDance_V37'; 
+    const DB_NAME = 'BeanDance_V38'; 
     const DB_VERSION = 2; 
     const STORE_COFFEE = 'coffees';
     const STORE_SETTINGS = 'settings';
     const STORE_ASSETS = 'assets';
-    
+    const SEARCH_BG_ID = 0;
+    const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
     
-    // --- State Management ---
+    let db;
+    let allCoffeesCache = [];
+    let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
+    let debounceTimer;
+    
+    // UI
+    const scroller = document.getElementById('scroller');
+    const toast = document.getElementById('statusToast');
+    
+    // State
     const App = {
-        db: null,
-        cache: {
-            coffees: [],
-            meta: { title: 'BeanDance', author: 'by CAIMAN' },
-            searchBg: null 
-        },
-        scroller: document.getElementById('scroller'),
-        // Debounce Pool: Key -> TimerID
         debounceMap: new Map(),
         isAnimating: false
     };
 
-    // --- Database Manager ---
-    const DBManager = {
-        async init() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains(STORE_COFFEE)) {
-                        db.createObjectStore(STORE_COFFEE, { keyPath: 'id', autoIncrement: true });
-                    }
-                    if (!db.objectStoreNames.contains(STORE_SETTINGS)) {
-                        db.createObjectStore(STORE_SETTINGS, { keyPath: 'key' });
-                    }
-                    if (!db.objectStoreNames.contains(STORE_ASSETS)) {
-                        db.createObjectStore(STORE_ASSETS, { keyPath: 'key' });
-                    }
-                };
-                request.onsuccess = (e) => {
-                    App.db = e.target.result;
-                    resolve();
-                };
-                request.onerror = (e) => reject(e);
-            });
-        },
+    function showToast(msg) {
+        toast.innerText = msg;
+        toast.style.opacity = '1';
+        setTimeout(() => toast.style.opacity = '0', 1500);
+    }
 
-        async loadAll() {
-            // Load Meta
-            const meta = await this.get(STORE_SETTINGS, 'meta');
-            if (meta) App.cache.meta = meta;
+    function initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_COFFEE)) db.createObjectStore(STORE_COFFEE, { keyPath: 'id', autoIncrement: true });
+                if (!db.objectStoreNames.contains(STORE_SETTINGS)) db.createObjectStore(STORE_SETTINGS, { keyPath: 'key' });
+                if (!db.objectStoreNames.contains(STORE_ASSETS)) db.createObjectStore(STORE_ASSETS, { keyPath: 'key' });
+            };
+            request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            request.onerror = (e) => reject(e);
+        });
+    }
 
-            // Load Search BG
-            const bg = await this.get(STORE_ASSETS, 'search_bg');
-            if (bg) App.cache.searchBg = bg.blob;
+    // --- Data Loaders ---
+    function getAllCoffees() {
+        return new Promise(resolve => {
+            const tx = db.transaction(STORE_COFFEE, 'readonly');
+            tx.objectStore(STORE_COFFEE).getAll().onsuccess = (e) => resolve(e.target.result || []);
+        });
+    }
 
-            // Load Coffees
-            App.cache.coffees = await this.getAll(STORE_COFFEE);
-        },
+    function getMeta() {
+        return new Promise(resolve => {
+            const tx = db.transaction(STORE_SETTINGS, 'readonly');
+            tx.objectStore(STORE_SETTINGS).get('meta').onsuccess = (e) => resolve(e.target.result);
+        });
+    }
 
-        get(storeName, key) {
-            return new Promise(resolve => {
-                const tx = App.db.transaction(storeName, 'readonly');
-                const req = tx.objectStore(storeName).get(key);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => resolve(null);
-            });
-        },
+    function getSearchBg() {
+        return new Promise(resolve => {
+            const tx = db.transaction(STORE_ASSETS, 'readonly');
+            tx.objectStore(STORE_ASSETS).get('search_bg').onsuccess = (e) => resolve(e.target.result);
+        });
+    }
 
-        getAll(storeName) {
-            return new Promise(resolve => {
-                const tx = App.db.transaction(storeName, 'readonly');
-                const req = tx.objectStore(storeName).getAll();
-                req.onsuccess = () => resolve(req.result || []);
-            });
-        },
+    // --- Debounced Save ---
+    function debounceSave(key, fn) {
+        if (App.debounceMap.has(key)) clearTimeout(App.debounceMap.get(key));
+        const timer = setTimeout(() => {
+            fn();
+            App.debounceMap.delete(key);
+            showToast('SAVED');
+        }, 500);
+        App.debounceMap.set(key, timer);
+    }
 
-        put(storeName, data) {
-            return new Promise((resolve, reject) => {
-                const tx = App.db.transaction(storeName, 'readwrite');
-                // structuredClone happens natively in IndexedDB put, 
-                // but to be absolutely safe against object mutations during async,
-                // passing the object directly is usually fine. 
-                // For explicit safety: structuredClone(data)
-                const req = tx.objectStore(storeName).put(data);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = (e) => reject(e);
-            });
-        },
-        
-        delete(storeName, key) {
-             return new Promise((resolve, reject) => {
-                const tx = App.db.transaction(storeName, 'readwrite');
-                const req = tx.objectStore(storeName).delete(key);
-                req.onsuccess = () => resolve();
-                req.onerror = (e) => reject(e);
+    function saveMeta(field, value) {
+        appMetadata[field] = value;
+        debounceSave('meta', () => {
+            const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+            tx.objectStore(STORE_SETTINGS).put({ key: 'meta', ...appMetadata });
+        });
+    }
+
+    function saveCoffee(id, data) {
+        const coffee = allCoffeesCache.find(c => c.id === id);
+        if (coffee) {
+            Object.assign(coffee, data);
+            debounceSave(`coffee-${id}`, () => {
+                // Use structuredClone for safety
+                const clone = structuredClone(coffee);
+                const tx = db.transaction(STORE_COFFEE, 'readwrite');
+                tx.objectStore(STORE_COFFEE).put(clone);
             });
         }
-    };
+    }
 
-    // --- Data Service (The Fix Layer) ---
-    const Service = {
-        // Per-entity Debounce Logic
-        debounceSave(key, fn) {
-            if (App.debounceMap.has(key)) {
-                clearTimeout(App.debounceMap.get(key));
-            }
-            const timer = setTimeout(() => {
-                fn();
-                App.debounceMap.delete(key);
-                UIManager.toast('SAVED');
-            }, 500);
-            App.debounceMap.set(key, timer);
-        },
-
-        saveMeta(field, value) {
-            App.cache.meta[field] = value;
-            this.debounceSave('meta', () => {
-                DBManager.put(STORE_SETTINGS, { key: 'meta', ...App.cache.meta });
-            });
-        },
-
-        saveCoffee(id, data) {
-            const coffee = App.cache.coffees.find(c => c.id === id);
-            if (coffee) {
-                // Update Cache immediately
-                Object.assign(coffee, data);
-                
-                // Debounce Write
-                this.debounceSave(`coffee-${id}`, () => {
-                    // FIX 1: structuredClone ensures Blob is preserved
-                    // Although modern IDB implementations do this implicitly, 
-                    // we avoid JSON.stringify methods completely.
-                    // We simply pass the reference, knowing cache matches DB structure.
-                    // To be paranoid about race conditions with cache:
-                    const clone = structuredClone(coffee);
-                    DBManager.put(STORE_COFFEE, clone);
-                });
-            }
-        },
-        
-        async addCoffee(roast) {
-            const newCoffee = {
-                name: 'New Coffee', 
-                powder: '18', liquid: '36', time: '25', grind: '2.0', 
-                roast: roast, imageBlob: null, created: Date.now()
+    async function addCoffee(roast) {
+        const newCoffee = {
+            name: 'New Coffee', 
+            powder: '18', liquid: '36', time: '25', grind: '2.0', 
+            roast: roast, imageBlob: null, created: Date.now()
+        };
+        const tx = db.transaction(STORE_COFFEE, 'readwrite');
+        return new Promise(resolve => {
+            tx.objectStore(STORE_COFFEE).add(newCoffee).onsuccess = (e) => {
+                newCoffee.id = e.target.result;
+                allCoffeesCache.push(newCoffee);
+                resolve(newCoffee);
             };
-            // Initial save needs no debounce
-            const id = await DBManager.put(STORE_COFFEE, newCoffee);
-            newCoffee.id = id;
-            App.cache.coffees.push(newCoffee);
-            return newCoffee;
-        },
+        });
+    }
 
-        async deleteCoffee(id) {
-            await DBManager.delete(STORE_COFFEE, id);
-            App.cache.coffees = App.cache.coffees.filter(c => c.id !== id);
-        },
-
-        async saveSearchBg(blob) {
-            App.cache.searchBg = blob;
-            await DBManager.put(STORE_ASSETS, { key: 'search_bg', blob: blob });
-            UIManager.toast('SAVED');
-        },
-
-        // Export / Import
-        async exportData() {
-            UIManager.toast('EXPORTING...');
-            const exportObj = {
-                version: 1,
-                meta: App.cache.meta,
-                coffees: []
+    async function deleteCoffee(id) {
+        const tx = db.transaction(STORE_COFFEE, 'readwrite');
+        return new Promise(resolve => {
+            tx.objectStore(STORE_COFFEE).delete(id).onsuccess = () => {
+                allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
+                resolve();
             };
-            
-            for (const c of App.cache.coffees) {
-                const cCopy = { ...c };
-                // Convert Blob to Base64 for JSON storage
-                let blobToConvert = cCopy.imageBlob || cCopy.imageData; // Handle potential legacy key
-                if (blobToConvert instanceof Blob) {
-                    cCopy.imageBase64 = await this.blobToBase64(blobToConvert);
-                }
-                // Clean up keys not for export
-                delete cCopy.imageBlob;
-                delete cCopy.imageData;
-                exportObj.coffees.push(cCopy);
-            }
+        });
+    }
 
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "beandance_backup.json");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        },
+    function saveSearchBg(blob) {
+        const tx = db.transaction(STORE_ASSETS, 'readwrite');
+        tx.objectStore(STORE_ASSETS).put({ key: 'search_bg', blob: blob }).onsuccess = () => showToast('SAVED');
+    }
 
-        async importData(file) {
-            UIManager.toast('IMPORTING...');
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    // Import Meta
-                    if(data.meta) {
-                        App.cache.meta = data.meta;
-                        await DBManager.put(STORE_SETTINGS, { key: 'meta', ...data.meta });
+    // --- Image ---
+    function handleImageUpload(e, id) {
+        const file = e.target.files[0];
+        if(!file) return;
+        showToast('PROCESSING...');
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.src = ev.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxDim = 1200; 
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
+                else { if (h > maxDim) { w *= maxDim/h; h = maxDim; } }
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob((blob) => {
+                    // Update DOM immediately
+                    const domImg = document.getElementById(`img-${id}`);
+                    if(domImg) {
+                        if(domImg.src && domImg.src.startsWith('blob:')) URL.revokeObjectURL(domImg.src);
+                        domImg.src = URL.createObjectURL(blob);
+                        domImg.style.opacity = 1;
                     }
-                    // Import Coffees
-                    if(data.coffees) {
-                        for(const c of data.coffees) {
-                            // Restore Blob
-                            if(c.imageBase64) {
-                                const res = await fetch(c.imageBase64);
-                                c.imageBlob = await res.blob();
-                                delete c.imageBase64;
-                            }
-                            delete c.id; // Assign new IDs
-                            const id = await DBManager.put(STORE_COFFEE, c);
-                            c.id = id;
-                        }
+                    // Save
+                    if(id === SEARCH_BG_ID) saveSearchBg(blob);
+                    else {
+                         const coffee = allCoffeesCache.find(c => c.id === id);
+                         if(coffee) {
+                             coffee.imageBlob = blob; // update cache
+                             const tx = db.transaction(STORE_COFFEE, 'readwrite');
+                             tx.objectStore(STORE_COFFEE).put(structuredClone(coffee)).onsuccess = () => showToast('SAVED');
+                         }
                     }
-                    location.reload(); 
-                } catch(err) {
-                    alert("Invalid Backup File");
-                    console.error(err);
-                }
+                }, 'image/jpeg', 0.85);
             };
-            reader.readAsText(file);
-        },
+        };
+    }
 
-        blobToBase64(blob) {
-            return new Promise((resolve, _) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
-            });
-        }
-    };
-
-    // --- UI Manager ---
-    const UIManager = {
-        toast(msg) {
-            const t = document.getElementById('statusToast');
-            t.innerText = msg;
-            t.style.opacity = '1';
-            setTimeout(() => t.style.opacity = '0', 1500);
-        },
-
-        renderAll() {
-            const scroller = App.scroller;
-            scroller.innerHTML = '';
+    // --- Main ---
+    async function initApp() {
+        try {
+            await initDB();
             
-            // 1. Search Card
-            scroller.appendChild(this.createSearchCard());
+            // Load Data
+            const meta = await getMeta();
+            if(meta) appMetadata = meta;
+            
+            const bgData = await getSearchBg(); // { key, blob }
+            const bgBlob = bgData ? bgData.blob : null;
+            
+            allCoffeesCache = await getAllCoffees();
+
+            // Render
+            const fragment = document.createDocumentFragment();
+            
+            // 1. Search
+            fragment.appendChild(createSearchCard(bgBlob));
             
             // 2. Coffees
-            App.cache.coffees.forEach(c => {
-                scroller.appendChild(this.createCoffeeCard(c));
+            allCoffeesCache.forEach(c => fragment.appendChild(createCoffeeCard(c)));
+            
+            // 3. Add
+            fragment.appendChild(createAddButton());
+            
+            scroller.appendChild(fragment);
+
+            // Positioning
+            if (allCoffeesCache.length >= 0) {
+                scroller.scrollLeft = CARD_FULL_WIDTH;
+            }
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    scroller.classList.add('visible');
+                    animateCards();
+                });
             });
-            
-            // 3. Add Button
-            scroller.appendChild(this.createAddButton());
-        },
 
-        createSearchCard() {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'card-wrapper';
-            wrapper.id = 'search-wrapper';
-            
-            let imgSrc = '';
-            if (App.cache.searchBg) imgSrc = URL.createObjectURL(App.cache.searchBg);
+            setupEvents();
 
-            wrapper.innerHTML = `
-                <div class="card">
-                    <div class="card-front">
-                        <label class="upload-btn">
-                            <input type="file" accept="image/*" hidden class="bg-upload">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                        </label>
-                        <img class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
-                        <div class="overlay-gradient"></div>
-                        
-                        <div class="card-content">
-                            <input type="text" class="app-brand-title-input" value="${App.cache.meta.title}">
-                            <input type="text" class="app-brand-author-input" value="${App.cache.meta.author}">
-                            <div class="search-bar-wrapper">
-                                <svg class="search-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                                <input type="text" class="search-input-inline" placeholder="SEARCH...">
-                            </div>
-                            <div class="system-actions">
-                                <div class="sys-btn btn-export" title="Backup"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></div>
-                                <label class="sys-btn btn-import" title="Restore">
-                                    <input type="file" accept=".json" hidden class="input-import">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-back" style="display:none"></div>
-                </div>
-            `;
-            return wrapper;
-        },
-
-        createCoffeeCard(data) {
-            const wrapper = document.createElement('div');
-            wrapper.className = `card-wrapper roast-${data.roast}`;
-            wrapper.setAttribute('data-id', data.id);
-
-            let imgSrc = '';
-            // Robust Blob Check: Support V37+ imageBlob and legacy data
-            let blob = data.imageBlob || (data.imageData instanceof Blob ? data.imageData : null);
-            if (blob) imgSrc = URL.createObjectURL(blob);
-
-            const grind = data.grind || '2.0';
-
-            wrapper.innerHTML = `
-                <div class="card">
-                    <div class="card-front">
-                        <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
-                        <img class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
-                        <div class="overlay-gradient"></div>
-                        <div class="card-content">
-                            <h2>${data.name}</h2>
-                            <p>${data.roast.toUpperCase()}</p>
-                        </div>
-                    </div>
-                    <div class="card-back">
-                        <div class="title-input-group"><input class="title-input" type="text" value="${data.name}" placeholder="Name"></div>
-                        <div class="data-list">
-                            <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" data-field="powder" value="${data.powder}"><span class="data-unit">g</span></div></div>
-                            <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" data-field="liquid" value="${data.liquid}"><span class="data-unit">g</span></div></div>
-                            <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" data-field="time" value="${data.time}"><span class="data-unit">s</span></div></div>
-                            <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" data-field="grind" value="${grind}"><span class="data-unit">m</span></div></div>
-                        </div>
-                        <div class="action-row"><button class="btn-text btn-delete">Delete</button><button class="btn-text btn-done">Done</button></div>
-                    </div>
-                </div>`;
-            return wrapper;
-        },
-
-        createAddButton() {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'card-wrapper';
-            wrapper.id = 'add-card-wrapper';
-            wrapper.innerHTML = `
-                <div class="card">
-                    <div class="card-front">
-                        <div class="card-add">
-                            <div class="add-icon">+</div>
-                            <div class="add-menu">
-                                <div class="add-menu-btn opt-light" data-roast="light">Light</div>
-                                <div class="add-menu-btn opt-medium" data-roast="medium">Medium</div>
-                                <div class="add-menu-btn opt-dark" data-roast="dark">Dark</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-back" style="display:none"></div>
-                </div>`;
-            return wrapper;
+        } catch (e) {
+            console.error(e);
+            alert("Error Init");
         }
-    };
+    }
 
-    // --- Event Logic ---
-    function setupDelegation() {
-        App.scroller.addEventListener('click', async (e) => {
+    // --- DOM Creation ---
+    function createSearchCard(blob) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'card-wrapper';
+        wrapper.id = 'search-wrapper';
+        wrapper.setAttribute('data-id', SEARCH_BG_ID);
+        
+        let src = '';
+        if(blob) src = URL.createObjectURL(blob);
+
+        wrapper.innerHTML = `
+            <div class="card">
+                <div class="card-front">
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${src?1:0}">
+                    <div class="overlay-gradient"></div>
+                    <div class="card-content">
+                        <input type="text" class="app-brand-title-input" value="${appMetadata.title}">
+                        <input type="text" class="app-brand-author-input" value="${appMetadata.author}">
+                        <div class="search-bar-wrapper">
+                            <svg class="search-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" class="search-input-inline" placeholder="SEARCH...">
+                        </div>
+                    </div>
+                </div>
+                <div class="card-back" style="display:none"></div>
+            </div>`;
+        return wrapper;
+    }
+
+    function createCoffeeCard(data) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `card-wrapper roast-${data.roast}`;
+        wrapper.setAttribute('data-id', data.id);
+        
+        let src = '';
+        if(data.imageBlob) src = URL.createObjectURL(data.imageBlob);
+        else if (data.imageData instanceof Blob) src = URL.createObjectURL(data.imageData); // Legacy compatibility
+
+        const grind = data.grind || '2.0';
+
+        wrapper.innerHTML = `
+            <div class="card">
+                <div class="card-front">
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${src?1:0}">
+                    <div class="overlay-gradient"></div>
+                    <div class="card-content">
+                        <h2>${data.name}</h2>
+                        <p>${data.roast.toUpperCase()}</p>
+                    </div>
+                </div>
+                <div class="card-back">
+                    <div class="title-input-group"><input class="title-input" type="text" value="${data.name}" placeholder="Name"></div>
+                    <div class="data-list">
+                        <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" data-field="powder" value="${data.powder}"><span class="data-unit">g</span></div></div>
+                        <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" data-field="liquid" value="${data.liquid}"><span class="data-unit">g</span></div></div>
+                        <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" data-field="time" value="${data.time}"><span class="data-unit">s</span></div></div>
+                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" data-field="grind" value="${grind}"><span class="data-unit">m</span></div></div>
+                    </div>
+                    <div class="action-row"><button class="btn-text btn-delete">Delete</button><button class="btn-text btn-done">Done</button></div>
+                </div>
+            </div>`;
+        return wrapper;
+    }
+
+    function createAddButton() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'card-wrapper';
+        wrapper.id = 'add-card-wrapper';
+        wrapper.innerHTML = `
+            <div class="card">
+                <div class="card-front">
+                    <div class="card-add">
+                        <div class="add-icon">+</div>
+                        <div class="add-menu">
+                            <div class="add-menu-btn opt-light" data-roast="light">Light</div>
+                            <div class="add-menu-btn opt-medium" data-roast="medium">Medium</div>
+                            <div class="add-menu-btn opt-dark" data-roast="dark">Dark</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-back" style="display:none"></div>
+            </div>`;
+        return wrapper;
+    }
+
+    // --- Event Delegation ---
+    function setupEvents() {
+        scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // Add Card Interaction
+            // Add Card
             const addCard = t.closest('.card-add');
-            if (addCard) {
-                const btn = t.closest('.add-menu-btn');
+            if(addCard) {
                 const menu = addCard.querySelector('.add-menu');
                 const icon = addCard.querySelector('.add-icon');
-
-                if (btn) {
-                    const roast = btn.dataset.roast;
-                    const newCoffee = await Service.addCoffee(roast);
-                    
-                    // DOM Update
-                    const dom = UIManager.createCoffeeCard(newCoffee);
-                    const addWrapper = document.getElementById('add-card-wrapper');
-                    App.scroller.insertBefore(dom, addWrapper);
-                    
-                    // Reset UI
+                if(t.classList.contains('add-menu-btn')) {
+                    const newCoffee = await addCoffee(t.dataset.roast);
+                    const dom = createCoffeeCard(newCoffee);
+                    scroller.insertBefore(dom, document.getElementById('add-card-wrapper'));
                     menu.classList.remove('show');
                     icon.style.display = 'block';
-                    
-                    // Scroll
-                    setTimeout(() => dom.scrollIntoView({ behavior: 'smooth', inline: 'center' }), 50);
+                    setTimeout(() => dom.scrollIntoView({behavior:'smooth', inline:'center'}), 50);
                 } else {
                     menu.classList.toggle('show');
                     icon.style.display = menu.classList.contains('show') ? 'none' : 'block';
@@ -703,168 +639,90 @@
                 return;
             }
 
-            // Export
-            if (t.closest('.btn-export')) { Service.exportData(); return; }
-
             const wrapper = t.closest('.card-wrapper');
-            if (!wrapper || wrapper.id === 'search-wrapper' || wrapper.id === 'add-card-wrapper') return;
+            if(!wrapper || wrapper.id === 'add-card-wrapper' || wrapper.id === 'search-wrapper') return;
 
-            // Prevent Flip on Control Click
-            if (t.closest('input') || t.closest('label')) return;
+            if(t.closest('input') || t.closest('.upload-btn')) return;
 
-            // Delete
-            if (t.closest('.btn-delete')) {
+            if(t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
-                if (confirm('Delete?')) {
-                    await Service.deleteCoffee(id);
-                    // Explicit Memory Cleanup
-                    const img = wrapper.querySelector('.bg-image');
-                    if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+                if(confirm('Delete?')) {
+                    await deleteCoffee(id);
                     wrapper.remove();
                 }
                 return;
             }
 
-            // Done
-            if (t.closest('.btn-done')) {
+            if(t.closest('.btn-done')) {
                 wrapper.classList.remove('flipped');
                 return;
             }
 
-            // Flip
-            if (!t.closest('.card-back')) {
-                if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
-                else wrapper.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            if(!t.closest('.card-back')) {
+                if(wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
+                else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
         });
 
-        // Input
-        App.scroller.addEventListener('input', (e) => {
-            const input = e.target;
-            const wrapper = input.closest('.card-wrapper');
-            if (!wrapper) return;
-            
+        scroller.addEventListener('input', (e) => {
+            const t = e.target;
+            const wrapper = t.closest('.card-wrapper');
+            if(!wrapper) return;
+
+            // Meta
+            if(t.classList.contains('app-brand-title-input')) return saveMeta('title', t.value);
+            if(t.classList.contains('app-brand-author-input')) return saveMeta('author', t.value);
+
             // Search
-            if (input.classList.contains('search-input-inline')) {
-                const q = input.value.toLowerCase();
+            if(t.classList.contains('search-input-inline')) {
+                const q = t.value.toLowerCase();
                 const cards = document.querySelectorAll('.card-wrapper[data-id]');
                 cards.forEach(c => {
                     const id = parseInt(c.dataset.id);
-                    const item = App.cache.coffees.find(x => x.id === id);
-                    if(item) {
-                        c.style.display = (!q || item.name.toLowerCase().includes(q)) ? 'block' : 'none';
+                    if(id !== SEARCH_BG_ID) {
+                        const item = allCoffeesCache.find(x => x.id === id);
+                        c.style.display = (!q || (item && item.name.toLowerCase().includes(q))) ? 'block' : 'none';
                     }
                 });
                 return;
             }
 
-            // Meta
-            if (input.classList.contains('app-brand-title-input')) return Service.saveMeta('title', input.value);
-            if (input.classList.contains('app-brand-author-input')) return Service.saveMeta('author', input.value);
-
-            // Data Update
+            // Coffee Data
             const id = parseInt(wrapper.dataset.id);
-            if (id) {
-                if (input.classList.contains('title-input')) {
-                    wrapper.querySelector('h2').innerText = input.value;
-                    Service.saveCoffee(id, { name: input.value });
-                } else if (input.dataset.field) {
-                    Service.saveCoffee(id, { [input.dataset.field]: input.value });
+            if(id > 0) {
+                if(t.classList.contains('title-input')) {
+                    wrapper.querySelector('h2').innerText = t.value;
+                    saveCoffee(id, {name: t.value});
+                } else if(t.dataset.field) {
+                    saveCoffee(id, {[t.dataset.field]: t.value});
                 }
             }
         });
 
-        // Upload
-        App.scroller.addEventListener('change', (e) => {
-            if (e.target.type === 'file') {
-                const file = e.target.files[0];
-                if (!file) return;
-                
+        scroller.addEventListener('change', (e) => {
+            if(e.target.type === 'file') {
                 const wrapper = e.target.closest('.card-wrapper');
-                
-                // Import
-                if (e.target.classList.contains('input-import')) {
-                    Service.importData(file);
-                    return;
-                }
-
-                // Image Process & Save
-                processImage(file).then(blob => {
-                    const img = wrapper.querySelector('.bg-image');
-                    if(img.src) URL.revokeObjectURL(img.src);
-                    img.src = URL.createObjectURL(blob);
-                    img.style.opacity = 1;
-
-                    if (wrapper.id === 'search-wrapper') Service.saveSearchBg(blob);
-                    else Service.saveCoffee(parseInt(wrapper.dataset.id), { imageBlob: blob });
-                });
+                const id = parseInt(wrapper.getAttribute('data-id'));
+                handleImageUpload(e, id);
             }
         });
     }
-
-    function processImage(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (e) => {
-                const img = new Image();
-                img.src = e.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const maxDim = 1200; 
-                    let w = img.width, h = img.height;
-                    if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
-                    else { if (h > maxDim) { w *= maxDim/h; h = maxDim; } }
-                    canvas.width = w; canvas.height = h;
-                    ctx.drawImage(img, 0, 0, w, h);
-                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
-                };
-            };
-        });
-    }
-
-    // --- Main ---
-    (async function main() {
-        try {
-            await DBManager.init();
-            await DBManager.loadAll();
-            
-            UIManager.renderAll();
-            setupDelegation();
-
-            if (App.cache.coffees.length > 0) {
-                App.scroller.scrollLeft = CARD_FULL_WIDTH;
-            }
-
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    App.scroller.classList.add('visible');
-                    animateCards();
-                });
-            });
-
-        } catch (e) {
-            console.error("Fatal Error", e);
-        }
-    })();
 
     // Animation Loop
     function animateCards() {
-        const center = App.scroller.scrollLeft + App.scroller.clientWidth / 2;
-        const wrappers = App.scroller.children;
+        const wrappers = scroller.children;
         const buffer = 450;
         
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
             if (card.style.display === 'none') continue;
-
+            
             const rect = card.getBoundingClientRect();
             if (rect.right < -buffer || rect.left > window.innerWidth + buffer) continue;
 
             const cardCenter = rect.left + rect.width / 2;
             const dist = Math.abs(window.innerWidth/2 - cardCenter);
-            
+
             if (card.id === 'search-wrapper') {
                 if (dist > 50) {
                     const r = (dist - 50) / 350;
@@ -879,11 +737,8 @@
 
             if (dist < 400) {
                 const r = dist / 400;
-                const s = 1 - r * 0.1; 
-                const o = 1 - r * 0.5;
-                card.style.transform = `scale(${s})`;
-                card.style.opacity = o;
-                
+                card.style.transform = `scale(${1 - r * 0.1})`;
+                card.style.opacity = 1 - r * 0.5;
                 if (dist < 150) card.classList.add('active');
                 else {
                     card.classList.remove('active');
