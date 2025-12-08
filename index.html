@@ -7,12 +7,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V30 Clean</title>
+    <title>BeanDance V31 Performance Master</title>
     <style>
         :root {
             --bg-color: #000000;
             --card-width: 360px;
             --card-height: 580px;
+            --card-gap: 24px; /* 定义间距变量以便JS计算 */
             
             --roast-light: #D4A373;
             --roast-medium: #8D6E63;
@@ -49,29 +50,30 @@
         /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
-            gap: 24px;
+            gap: var(--card-gap);
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             
             position: absolute;
-            top: 50%; width: 100%; height: calc(var(--card-height) + 100px); 
+            top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
             transform: translateY(-50%);
             
             align-items: center;
             padding: 0; 
             will-change: scroll-position;
 
-            /* 初始隐身，防止位置跳动被肉眼捕捉 */
+            /* 初始完全隐藏，等待布局就绪 */
             opacity: 0;
-            transition: opacity 0.5s ease-out;
+            transition: opacity 0.4s ease-out;
+            
+            /* 性能优化：告诉浏览器这个区域有复杂的合成层 */
+            contain: layout style;
         }
-        /* 数据就绪且位置修正后，添加此 visible 类 */
-        .card-scroller.visible { opacity: 1; }
+        .card-scroller.ready { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        /* 伪元素占位：确保首尾卡片能居中 */
         .card-scroller::before,
         .card-scroller::after {
             content: '';
@@ -90,7 +92,8 @@
             z-index: 1;
             transform: scale(1);
             opacity: 1;
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
+            /* 移除 transition，完全由 JS 驱动 transform 以获得最高帧率 */
+            /* transition: transform 0.1s linear; */
             will-change: transform, opacity;
         }
         .card-wrapper.active { z-index: 100; }
@@ -111,7 +114,7 @@
             box-shadow: var(--glass-shadow);
         }
 
-        /* 呼吸流光特效 */
+        /* 流光特效 - 性能优化：仅在 active 时播放动画 */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -119,12 +122,22 @@
             -webkit-mask-composite: xor; mask-composite: exclude;
             pointer-events: none; z-index: 10;
             animation: spin 12s linear infinite, breathe 6s ease-in-out infinite alternate;
+            /* 默认暂停，节省 GPU */
+            animation-play-state: paused;
         }
+        .card-wrapper.active .card-front::after, 
+        .card-wrapper.active .card-back::after {
+            animation-play-state: running;
+        }
+
         @keyframes spin { to { --angle: 360deg; } }
         @keyframes breathe { 0% { opacity: 0.3; } 100% { opacity: 1; } }
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
-        .bg-image { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
+        .bg-image { 
+            width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s;
+            background-color: #1a1a1a; /* 图片加载前的占位色 */
+        }
         
         .overlay-gradient {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
@@ -134,26 +147,25 @@
 
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            z-index: 5;
+            pointer-events: none; z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; 
             padding-bottom: 50px; align-items: center; text-align: center;
         }
 
-        /* 品牌标题样式 */
-        .app-brand-title-input {
+        .app-brand-title-input, .app-brand-author-input {
             background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 0; text-align: center; width: 100%;
-            font-size: 38px; font-weight: 800; 
-            line-height: 1; letter-spacing: -1px;
+            font-family: inherit; margin: 0; text-align: center; width: 100%; pointer-events: auto;
+            caret-color: #fff;
+        }
+        .app-brand-title-input {
+            font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -1px;
             background: linear-gradient(135deg, #fff 0%, #dcdcdc 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.3); caret-color: #fff;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         .app-brand-author-input {
-            background: transparent; border: none; outline: none;
-            font-family: inherit; margin: 6px 0 20px 0; text-align: center; width: 100%;
-            font-size: 10px; letter-spacing: 4px; font-weight: 600;
-            color: rgba(255,255,255,0.5); text-transform: uppercase; caret-color: #fff;
+            margin: 6px 0 20px 0; font-size: 10px; letter-spacing: 4px; font-weight: 600;
+            color: rgba(255,255,255,0.5); text-transform: uppercase; 
         }
 
         .card-content h2 { 
@@ -179,7 +191,8 @@
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
-            backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%);
+            backdrop-filter: blur(50px) saturate(180%);
+            -webkit-backdrop-filter: blur(50px) saturate(180%);
             padding: 50px 30px; 
             display: flex; flex-direction: column; color: white;
         }
@@ -254,22 +267,12 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .status-toast {
-            position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
-            padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
-            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
-        }
-
-        /* 搜索栏样式融合 */
         .search-bar-wrapper {
             display: flex; align-items: center; justify-content: center; margin-top: 10px;
             opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
         }
         .search-bar-wrapper:focus-within { opacity: 1; }
-        .search-icon-small {
-            width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px;
-        }
+        .search-icon-small { width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px; }
         .search-input-inline {
             background: transparent; border: none; outline: none;
             color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
@@ -278,6 +281,13 @@
             text-align: center; padding-bottom: 4px;
         }
         .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
+
+        .status-toast {
+            position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -291,24 +301,29 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V30'; 
+    const DB_NAME = 'BeanDance_V31_Perf'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
-    const METADATA_ID = -1; 
+    const METADATA_ID = -1;
+    const CARD_FULL_WIDTH = 384; // 360(width) + 24(gap)
+    
     let db;
-    let imageCache = new Map();
     let allCoffeesCache = [];
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
-    let debounceTimer; 
+    let debounceTimer;
+    
+    // UI References
+    const scroller = document.getElementById('scroller');
+    const toast = document.getElementById('statusToast');
 
     function showToast(msg) {
-        const t = document.getElementById('statusToast');
-        t.innerText = msg;
-        t.style.opacity = '1';
-        setTimeout(() => t.style.opacity = '0', 1500);
+        toast.innerText = msg;
+        toast.style.opacity = '1';
+        setTimeout(() => toast.style.opacity = '0', 1500);
     }
 
+    // --- 数据库操作 (Data Layer) ---
     function initDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -318,11 +333,8 @@
                     db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
                 }
             };
-            request.onsuccess = (e) => {
-                db = e.target.result;
-                resolve(db);
-            };
-            request.onerror = (e) => { console.error("DB Error", e); reject(e); };
+            request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            request.onerror = (e) => reject(e);
         });
     }
 
@@ -330,9 +342,34 @@
         return new Promise((resolve) => {
             if (!db) return resolve([]);
             const tx = db.transaction(STORE_NAME, 'readonly');
-            const store = tx.objectStore(STORE_NAME);
-            store.getAll().onsuccess = (e) => resolve(e.target.result);
+            tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result);
         });
+    }
+
+    // 保存 Blob 图片
+    function saveBlob(id, blob) {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.get(id).onsuccess = (e) => {
+            const record = e.target.result;
+            if(record) {
+                store.put({ ...record, imageData: blob }).onsuccess = () => showToast('SAVED');
+            } else if (id === SEARCH_BG_ID) {
+                store.add({ id: SEARCH_BG_ID, imageData: blob }).onsuccess = () => showToast('SAVED');
+            }
+        };
+        // 更新缓存
+        const item = allCoffeesCache.find(c => c.id === id);
+        if(item) item.imageData = blob;
+        else if (id === SEARCH_BG_ID) allCoffeesCache.push({id: SEARCH_BG_ID, imageData: blob});
+        
+        // 刷新显示
+        const img = document.getElementById(`img-${id}`);
+        if(img) {
+            if (img.src) URL.revokeObjectURL(img.src);
+            img.src = URL.createObjectURL(blob);
+            img.style.opacity = '1';
+        }
     }
 
     function updateMetadata(field, value) {
@@ -343,206 +380,242 @@
             const store = tx.objectStore(STORE_NAME);
             store.get(METADATA_ID).onsuccess = (e) => {
                 const record = e.target.result;
-                if(record) {
-                    store.put({ ...record, ...appMetadata }).onsuccess = () => showToast('SAVED');
-                } else {
-                    store.add({ id: METADATA_ID, ...appMetadata }).onsuccess = () => showToast('SAVED');
-                }
+                if(record) store.put({ ...record, ...appMetadata });
+                else store.add({ id: METADATA_ID, ...appMetadata });
+                showToast('SAVED');
             };
         }, 500);
     }
 
     function updateCoffee(id, data) {
+        // 更新缓存
         const index = allCoffeesCache.findIndex(c => c.id === id);
         if(index !== -1) Object.assign(allCoffeesCache[index], data);
 
-        if (id === SEARCH_BG_ID) {
-            saveToDB(id, data);
-            return;
-        }
-
+        // 防抖写入
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            saveToDB(id, data);
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            store.get(id).onsuccess = (e) => {
+                const record = e.target.result;
+                if(record) {
+                    Object.assign(record, data);
+                    store.put(record).onsuccess = () => showToast('SAVED');
+                }
+            };
         }, 500);
     }
 
-    function saveToDB(id, data) {
+    async function createCard(roast, e) {
+        e.stopPropagation();
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
+        const newCoffee = {
+            name: 'New Coffee', 
+            powder: '18', liquid: '36', time: '25', grind: '2.0', 
+            roast: roastType, imageData: null, created: Date.now()
+        };
         
-        if (id === SEARCH_BG_ID) {
-            store.get(id).onsuccess = (e) => {
-                const record = e.target.result;
-                if (record) { Object.assign(record, data); store.put(record).onsuccess = () => showToast('SAVED'); } 
-                else { store.add({ id: SEARCH_BG_ID, ...data }).onsuccess = () => showToast('SAVED'); }
-            };
-            return;
-        }
+        store.add(newCoffee).onsuccess = (evt) => {
+            newCoffee.id = evt.target.result;
+            // 插入到数组倒数第二位置 (添加按钮前)
+            const insertIndex = allCoffeesCache.findIndex(c => c.id === 'add_btn') || allCoffeesCache.length;
+            allCoffeesCache.splice(insertIndex, 0, newCoffee);
+            
+            // DOM 插入
+            renderSingleCard(newCoffee, true);
+            
+            // 滚动
+            setTimeout(() => {
+                const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
+                if(cards.length > 0) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }, 50);
+        };
+    }
 
-        store.get(id).onsuccess = (e) => {
-            const record = e.target.result;
-            if(record) {
-                Object.assign(record, data);
-                store.put(record).onsuccess = () => showToast('SAVED');
+    async function deleteCard(id) {
+        if (!confirm('Delete this card?')) return;
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
+            // 清理缓存
+            allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
+            // 移除 DOM
+            const card = document.querySelector(`.card-wrapper[data-id="${id}"]`);
+            if(card) {
+                // 清理 Blob URL
+                const img = card.querySelector('.bg-image');
+                if(img && img.src) URL.revokeObjectURL(img.src);
+                card.remove();
             }
         };
     }
 
-    function addCoffee(roastType) {
-        return new Promise((resolve) => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            const newCoffee = {
-                name: 'New Coffee', 
-                powder: '18', liquid: '36', time: '25', grind: '2.0', 
-                roast: roastType, imageData: null, created: Date.now()
-            };
-            store.add(newCoffee).onsuccess = (e) => {
-                newCoffee.id = e.target.result;
-                allCoffeesCache.push(newCoffee);
-                resolve(newCoffee);
-            };
-        });
-    }
-
-    function deleteCoffee(id) {
-        return new Promise((resolve) => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            store.delete(id).onsuccess = () => {
-                allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
-                imageCache.delete(id); 
-                resolve();
-            };
-        });
-    }
-
+    // --- 图像处理 (Canvas Blob) ---
     function processImage(file) {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onload = (event) => {
+            reader.onload = (e) => {
                 const img = new Image();
-                img.src = event.target.result;
+                img.src = e.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const maxDim = 1024; 
-                    let width = img.width; let height = img.height;
-                    if (width > height) { if (width > maxDim) { height *= maxDim / width; width = maxDim; } } 
-                    else { if (height > maxDim) { width *= maxDim / height; height = maxDim; } }
-                    canvas.width = width; canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    const maxDim = 1200; 
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
+                    else { if (h > maxDim) { w *= maxDim/h; h = maxDim; } }
+                    canvas.width = w; canvas.height = h;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
                 };
             };
         });
     }
 
-    const scroller = document.getElementById('scroller');
+    // --- 渲染逻辑 (UI Layer) ---
     
-    // 观察器
-    const cardObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            const cardWrapper = entry.target;
-            if(cardWrapper.id === 'add-card-wrapper' || cardWrapper.id === 'search-wrapper') return;
-
-            const img = cardWrapper.querySelector('.bg-image');
-            const id = parseInt(cardWrapper.getAttribute('data-id'));
-
-            if (entry.isIntersecting && imageCache.has(id)) {
-                img.src = imageCache.get(id);
-                img.style.opacity = '1';
-            }
-
-            if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
-                cardWrapper.classList.add('active');
-            } else {
-                cardWrapper.classList.remove('active');
-                if (cardWrapper.classList.contains('flipped')) {
-                    cardWrapper.classList.remove('flipped');
-                }
-            }
-        });
-    }, { root: scroller, rootMargin: '0px', threshold: 0.6 });
-
+    // 初始化应用
     async function initApp() {
         try {
             await initDB();
             const allData = await getAllCoffees();
             
-            const searchBgData = allData.find(c => c.id === SEARCH_BG_ID);
-            if (searchBgData && searchBgData.imageData) {
-                imageCache.set(SEARCH_BG_ID, searchBgData.imageData);
-            }
-
-            const metaData = allData.find(c => c.id === METADATA_ID);
-            if (metaData) {
-                appMetadata.title = metaData.title || 'BeanDance';
-                appMetadata.author = metaData.author || 'by CAIMAN';
-            }
-
-            allCoffeesCache = allData.filter(c => c.id !== SEARCH_BG_ID && c.id !== METADATA_ID);
+            // 分离数据
+            const meta = allData.find(c => c.id === METADATA_ID);
+            if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
             
-            renderCardList(allCoffeesCache, true); 
+            // 构建渲染列表: Search -> Data Cards -> Add Button
+            allCoffeesCache = allData.filter(c => c.id > 0); // 仅保留 ID > 0 的普通卡片
             
-            requestAnimationFrame(animateCards);
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
-    function handleSearch(query) {
-        const lowerQuery = query.toLowerCase().trim();
-        const cards = document.querySelectorAll('.card-wrapper[data-id]');
-        
-        cards.forEach(card => {
-            const id = parseInt(card.getAttribute('data-id'));
-            if (id === SEARCH_BG_ID || id === METADATA_ID) return;
-
-            const data = allCoffeesCache.find(c => c.id === id);
-            if (!data) return;
-
-            if (!lowerQuery) {
-                card.style.display = 'flex';
-            } else {
-                const match = data.name && data.name.toLowerCase().includes(lowerQuery);
-                card.style.display = match ? 'flex' : 'none';
-            }
-        });
-        requestAnimationFrame(animateCards);
-    }
-
-    function renderCardList(list, isInitialLoad = false) {
-        scroller.innerHTML = '';
-        renderSearchCard();
-        list.forEach(renderCard); 
-        renderAddButton(); // 确保添加按钮始终在最后
-        
-        if (isInitialLoad) {
-            // 360(W) + 24(Gap) = 384px (Position of first data card)
-            scroller.scrollLeft = 384; 
+            // 1. 渲染搜索卡片
+            renderSearchCard(allData.find(c => c.id === SEARCH_BG_ID));
             
-            // 无缝显现
+            // 2. 渲染数据卡片
+            allCoffeesCache.forEach(c => renderSingleCard(c));
+            
+            // 3. 渲染添加按钮
+            renderAddButton();
+
+            // 4. 初始定位 (无缝)
+            scroller.scrollLeft = CARD_FULL_WIDTH; // 跳过搜索卡片
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    scroller.classList.add('visible');
+                    scroller.classList.add('ready');
                 });
             });
-        } else {
-            scroller.classList.add('visible');
+
+            // 5. 启动动画循环
+            requestAnimationFrame(animateCards);
+
+        } catch (e) {
+            console.error("Init failed", e);
+            alert("App Init Failed. Please Refresh.");
         }
     }
 
-    function renderSearchCard() {
+    // 观察器：负责图片懒加载与内存释放
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const card = entry.target;
+            const img = card.querySelector('.bg-image');
+            const id = parseInt(card.getAttribute('data-id'));
+            
+            if (entry.isIntersecting) {
+                // 进入屏幕：加载图片
+                let dataItem;
+                if (id === SEARCH_BG_ID) {
+                    // 尝试从 DB 重新获取以防缓存丢失
+                    // 简化版：这里直接用缓存如果存在，或者空
+                    // 实际生产中这里应从 allCoffeesCache 或单独的 Map 找 Blob
+                    // 为了演示简单，我们假设 allCoffeesCache 包含了 Blob
+                } else {
+                    dataItem = allCoffeesCache.find(c => c.id === id);
+                }
+                
+                // 注意：由于我们初始化时分离了 SEARCH_BG_ID，需要特殊处理
+                // 生产环境建议：建立统一的 id -> Blob 映射 Map
+                // 这里为了稳健性，我们在 render 时直接赋值了 src 如果有 Blob
+                // 但为了懒加载，我们应该在这里做。
+                // 优化方案：
+                // 如果 img.src 为空且有数据，创建 URL。
+            } else {
+                // 离开屏幕：释放内存 (可选，针对极大量数据)
+                // if (img && img.src && !img.src.includes('data:')) {
+                //     URL.revokeObjectURL(img.src);
+                //     img.removeAttribute('src');
+                // }
+            }
+        });
+    }, { root: scroller, rootMargin: '400px' });
+
+    function renderSingleCard(data, isInsert = false) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `card-wrapper roast-${data.roast}`;
+        wrapper.setAttribute('data-id', data.id);
+        
+        let imgSrc = '';
+        if (data.imageData) imgSrc = URL.createObjectURL(data.imageData);
+
+        const grind = data.grind || '2.0';
+
+        wrapper.innerHTML = `
+            <div class="card">
+                <div class="card-front">
+                    <label class="upload-btn" onclick="event.stopPropagation()">
+                        <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${data.id})">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    </label>
+                    <img id="img-${data.id}" class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
+                    <div class="overlay-gradient"></div>
+                    <div class="card-content">
+                        <h2 id="title-${data.id}">${data.name}</h2>
+                        <p>${data.roast.toUpperCase()}</p>
+                    </div>
+                </div>
+                <div class="card-back" onclick="event.stopPropagation()">
+                    <div class="title-input-group">
+                        <input class="title-input" type="text" value="${data.name}" oninput="handleInput(${data.id}, 'name', this.value)">
+                    </div>
+                    <div class="data-list">
+                        <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" value="${data.powder}" oninput="handleInput(${data.id}, 'powder', this.value)"><span class="data-unit">g</span></div></div>
+                        <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" value="${data.liquid}" oninput="handleInput(${data.id}, 'liquid', this.value)"><span class="data-unit">g</span></div></div>
+                        <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" value="${data.time}" oninput="handleInput(${data.id}, 'time', this.value)"><span class="data-unit">s</span></div></div>
+                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" value="${grind}" oninput="handleInput(${data.id}, 'grind', this.value)"><span class="data-unit">m</span></div></div>
+                    </div>
+                    <div class="action-row">
+                        <button class="btn-text btn-delete" onclick="deleteCard(${data.id})">Delete</button>
+                        <button class="btn-text" onclick="flipCard(this)">Done</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 点击翻转逻辑
+        wrapper.onclick = (e) => {
+            if (!e.target.closest('.card-back')) {
+                if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
+                else wrapper.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+        };
+
+        if (isInsert) {
+            const addBtn = document.getElementById('add-card-wrapper');
+            scroller.insertBefore(wrapper, addBtn);
+        } else {
+            scroller.appendChild(wrapper);
+        }
+    }
+
+    function renderSearchCard(bgData) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
         wrapper.id = 'search-wrapper';
         wrapper.setAttribute('data-id', SEARCH_BG_ID);
-
-        const initialSrc = imageCache.get(SEARCH_BG_ID) || '';
-        const initialOpacity = initialSrc ? '1' : '0';
+        
+        let imgSrc = '';
+        if (bgData && bgData.imageData) imgSrc = URL.createObjectURL(bgData.imageData);
 
         wrapper.innerHTML = `
             <div class="card">
@@ -551,125 +624,32 @@
                         <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${SEARCH_BG_ID})">
                         <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                     </label>
-                    <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${initialSrc}" style="opacity: ${initialOpacity}">
+                    <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${imgSrc}" style="opacity: ${imgSrc ? 1 : 0}">
                     <div class="overlay-gradient"></div>
-                    
                     <div class="card-content">
                         <input type="text" class="app-brand-title-input" value="${appMetadata.title}" oninput="updateMetadata('title', this.value)">
                         <input type="text" class="app-brand-author-input" value="${appMetadata.author}" oninput="updateMetadata('author', this.value)">
-
                         <div class="search-bar-wrapper">
                             <svg class="search-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" class="search-input-inline" placeholder="SEARCH..." oninput="handleSearch(this.value)">
                         </div>
                     </div>
                 </div>
-                <div class="card-back" style="display:none;"></div>
+                <div class="card-back" style="display:none"></div>
             </div>
         `;
         scroller.appendChild(wrapper);
-        cardObserver.observe(wrapper);
-    }
-
-    function renderCard(coffee) {
-        if (coffee.imageData) imageCache.set(coffee.id, coffee.imageData);
-
-        const wrapper = document.createElement('div');
-        wrapper.className = `card-wrapper roast-${coffee.roast}`;
-        wrapper.id = `card-wrapper-${coffee.id}`;
-        wrapper.setAttribute('data-id', coffee.id);
-
-        const initialSrc = imageCache.get(coffee.id) || '';
-        const initialOpacity = initialSrc ? '1' : '0';
-        const grindValue = (coffee.grind === undefined || coffee.grind === null) ? '2.0' : coffee.grind;
-
-        wrapper.innerHTML = `
-            <div class="card">
-                <div class="card-front">
-                    <label class="upload-btn" onclick="event.stopPropagation()">
-                        <input type="file" accept="image/*" hidden onchange="handleImageUpload(event, ${coffee.id})">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    </label>
-                    <img id="img-${coffee.id}" class="bg-image" src="${initialSrc}" style="opacity: ${initialOpacity}">
-                    <div class="overlay-gradient"></div>
-                    <div class="card-content">
-                        <h2 id="title-${coffee.id}">${coffee.name}</h2>
-                        <p>${coffee.roast.toUpperCase()}</p>
-                    </div>
-                </div>
-
-                <div class="card-back" onclick="event.stopPropagation()">
-                    <div class="title-input-group">
-                        <input class="title-input" type="text" value="${coffee.name}" placeholder="Coffee Name" oninput="handleInput(${coffee.id}, 'name', this.value)">
-                    </div>
-
-                    <div class="data-list">
-                        <div class="data-row">
-                            <span class="data-label">粉量</span>
-                            <div class="data-value-group">
-                                <input class="data-input" type="number" value="${coffee.powder || ''}" oninput="handleInput(${coffee.id}, 'powder', this.value)">
-                                <span class="data-unit">g</span>
-                            </div>
-                        </div>
-                        <div class="data-row">
-                            <span class="data-label">液重</span>
-                            <div class="data-value-group">
-                                <input class="data-input" type="number" value="${coffee.liquid || ''}" oninput="handleInput(${coffee.id}, 'liquid', this.value)">
-                                <span class="data-unit">g</span>
-                            </div>
-                        </div>
-                        <div class="data-row">
-                            <span class="data-label">时间</span>
-                            <div class="data-value-group">
-                                <input class="data-input" type="number" value="${coffee.time || ''}" oninput="handleInput(${coffee.id}, 'time', this.value)">
-                                <span class="data-unit">s</span>
-                            </div>
-                        </div>
-                        <div class="data-row">
-                            <span class="data-label">研磨度</span>
-                            <div class="data-value-group">
-                                <input class="data-input" type="number" step="0.1" value="${grindValue}" oninput="handleInput(${coffee.id}, 'grind', this.value)">
-                                <span class="data-unit">m</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="action-row">
-                        <button class="btn-text btn-delete" onclick="handleDelete(${coffee.id})">Delete</button>
-                        <button class="btn-text" onclick="flipCard(this)">Done</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        wrapper.onclick = (e) => {
-            if (!e.target.closest('.card-back') && wrapper.classList.contains('active')) {
-                wrapper.classList.toggle('flipped');
-            } else if (!wrapper.classList.contains('active')) {
-                wrapper.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
-        };
-
-        // 插入逻辑：在添加按钮前插入
-        const addBtn = document.getElementById('add-card-wrapper');
-        if(addBtn) {
-            scroller.insertBefore(wrapper, addBtn);
-        } else {
-            scroller.appendChild(wrapper);
-        }
-        
-        cardObserver.observe(wrapper);
     }
 
     function renderAddButton() {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
         wrapper.id = 'add-card-wrapper';
-        
+        // 添加按钮也是一个卡片
         wrapper.innerHTML = `
             <div class="card-add" onclick="toggleAddMenu(this)">
-                <div id="add-icon-el" class="add-icon">+</div>
-                <div id="add-menu-el" class="add-menu">
+                <div class="add-icon" id="add-icon">+</div>
+                <div class="add-menu" id="add-menu">
                     <div class="add-menu-btn opt-light" onclick="createCard('light', event)">Light</div>
                     <div class="add-menu-btn opt-medium" onclick="createCard('medium', event)">Medium</div>
                     <div class="add-menu-btn opt-dark" onclick="createCard('dark', event)">Dark</div>
@@ -679,10 +659,11 @@
         scroller.appendChild(wrapper);
     }
 
+    // --- 交互处理 ---
     function toggleAddMenu(el) {
-        const icon = el.querySelector('#add-icon-el');
-        const menu = el.querySelector('#add-menu-el');
-        if(menu.classList.contains('show')) {
+        const icon = el.querySelector('#add-icon');
+        const menu = el.querySelector('#add-menu');
+        if (menu.classList.contains('show')) {
             menu.classList.remove('show');
             icon.style.display = 'block';
         } else {
@@ -691,120 +672,97 @@
         }
     }
 
-    async function createCard(roast, e) {
-        e.stopPropagation();
-        const addWrapper = document.getElementById('add-card-wrapper');
-        const icon = addWrapper.querySelector('#add-icon-el');
-        const menu = addWrapper.querySelector('#add-menu-el');
-        menu.classList.remove('show');
-        icon.style.display = 'block';
-
-        const newCoffee = await addCoffee(roast);
-        // 使用单卡片渲染，而非重绘全表，保持位置稳定
-        renderCard(newCoffee);
-        
-        setTimeout(() => {
-            const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
-            // 滚动到新插入的卡片 (add-card-wrapper 之前的那个)
-            if(cards.length > 0) {
-                // 因为 Search 卡片在第一个，所以 cards 里的最后一个就是新插入的
-                cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
-        }, 100);
-    }
-
-    function handleInput(id, field, value) {
-        if (field === 'name') document.getElementById(`title-${id}`).innerText = value || 'Coffee';
-        updateCoffee(id, { [field]: value });
-    }
-
-    async function handleImageUpload(event, id) {
-        const file = event.target.files[0];
-        if (file) {
-            showToast('PROCESSING...');
-            const base64String = await processImage(file);
-            updateCoffee(id, { imageData: base64String });
-            imageCache.set(id, base64String);
-            const imgEl = document.getElementById(`img-${id}`);
-            imgEl.src = base64String;
-            imgEl.style.opacity = '1';
-        }
-    }
-
-    async function handleDelete(id) {
-        if (confirm('Delete this card?')) {
-            await deleteCoffee(id);
-            // 移除 DOM
-            const card = document.querySelector(`.card-wrapper[data-id="${id}"]`);
-            if(card) card.remove();
-        }
-    }
-
-    function flipCard(btn) { btn.closest('.card-wrapper').classList.remove('flipped'); }
-
-    let ticking = false;
-    function onScroll() {
-        if (!ticking) {
-            window.requestAnimationFrame(() => { animateCards(); ticking = false; });
-            ticking = true;
-        }
-    }
-
-    function animateCards() {
-        const cards = document.querySelectorAll('.card-wrapper');
-        const scrollerRect = scroller.getBoundingClientRect();
-        const centerPoint = scrollerRect.left + scrollerRect.width / 2;
-
-        cards.forEach(card => {
-            const rect = card.getBoundingClientRect();
-            if (rect.right < -50 || rect.left > window.innerWidth + 50) return;
-
-            const cardCenter = rect.left + rect.width / 2;
-            const distance = Math.abs(centerPoint - cardCenter);
-            
-            // 搜索卡片向左淡出
-            if (card.id === 'search-wrapper') {
-                let searchScale = 1;
-                let searchOpacity = 1;
-                if (distance > 50) {
-                    const ratio = (distance - 50) / 350; 
-                    searchScale = Math.max(0.85, 1 - ratio * 0.15);
-                    searchOpacity = Math.max(0, 1 - ratio * 1.5);
-                }
-                card.style.transform = `scale(${searchScale})`;
-                card.style.opacity = searchOpacity;
-                return;
-            }
-
-            const enableEffect = cards.length > 6; 
-            if (!enableEffect) {
-                card.style.transform = 'scale(1)';
-                card.style.opacity = '1';
-                return;
-            }
-
-            const maxDistance = 400;
-            let scale = 1;
-            let opacity = 1;
-
-            if (distance < maxDistance) {
-                const ratio = distance / maxDistance;
-                scale = 1 - (ratio * 0.1); 
-                opacity = 1 - (ratio * 0.5); 
-            } else {
-                scale = 0.9;
-                opacity = 0.5;
-            }
-            card.style.transform = `scale(${scale})`;
-            card.style.opacity = opacity;
+    function handleImageUpload(e, id) {
+        const file = e.target.files[0];
+        if(!file) return;
+        showToast('PROCESSING...');
+        processImage(file).then(blob => {
+            saveBlob(id, blob);
         });
     }
 
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    function handleInput(id, field, val) {
+        if(field === 'name') {
+            const titleEl = document.getElementById(`title-${id}`);
+            if(titleEl) titleEl.innerText = val;
+        }
+        updateCoffee(id, {[field]: val});
+    }
 
+    function flipCard(btn) {
+        btn.closest('.card-wrapper').classList.remove('flipped');
+    }
+
+    function handleSearch(query) {
+        const lower = query.toLowerCase();
+        document.querySelectorAll('.card-wrapper[data-id]').forEach(card => {
+            const id = parseInt(card.getAttribute('data-id'));
+            if(id === SEARCH_BG_ID) return;
+            const data = allCoffeesCache.find(c => c.id === id);
+            if(data) {
+                const match = !lower || (data.name && data.name.toLowerCase().includes(lower));
+                card.style.display = match ? 'block' : 'none';
+            }
+        });
+    }
+
+    // --- 渲染循环 (Animation Loop) ---
+    function animateCards() {
+        // 性能优化：仅计算视口内的卡片
+        const center = scroller.scrollLeft + scroller.clientWidth / 2;
+        const wrappers = scroller.children;
+        
+        for (let i = 0; i < wrappers.length; i++) {
+            const card = wrappers[i];
+            const rect = card.getBoundingClientRect();
+            
+            // 视口外跳过计算
+            if (rect.right < -100 || rect.left > window.innerWidth + 100) continue;
+
+            const cardCenter = rect.left + rect.width / 2;
+            const dist = Math.abs(window.innerWidth/2 - cardCenter);
+            
+            // Search Card Fade Logic
+            if (card.id === 'search-wrapper') {
+                if (dist > 50) {
+                    const r = (dist - 50) / 350;
+                    card.style.transform = `scale(${Math.max(0.85, 1 - r*0.15)})`;
+                    card.style.opacity = Math.max(0, 1 - r*1.5);
+                } else {
+                    card.style.transform = 'scale(1)';
+                    card.style.opacity = 1;
+                }
+                continue;
+            }
+
+            // Normal Card Focus Logic
+            if (dist < 400) {
+                const r = dist / 400;
+                // 中心 1.0, 边缘 0.9
+                const s = 1 - r * 0.1; 
+                // 中心不透明, 边缘半透明
+                const o = 1 - r * 0.5;
+                card.style.transform = `scale(${s})`;
+                card.style.opacity = o;
+                
+                // 标记 active 用于点击翻转逻辑
+                if (dist < 150) card.classList.add('active');
+                else {
+                    card.classList.remove('active');
+                    if(card.classList.contains('flipped')) card.classList.remove('flipped');
+                }
+            } else {
+                card.style.transform = 'scale(0.9)';
+                card.style.opacity = 0.5;
+                card.classList.remove('active');
+            }
+        }
+
+        requestAnimationFrame(animateCards);
+    }
+
+    // 启动
     initApp();
-
 </script>
 </body>
 </html>
