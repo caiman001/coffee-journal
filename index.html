@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Coffee Journal">
 
-    <title>Coffee Journal V18 Negative Screen</title>
+    <title>Coffee Journal V19 Negative Screen</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -46,6 +46,7 @@
             padding: 0; margin: 0;
         }
 
+        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
             gap: 24px;
@@ -53,15 +54,19 @@
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            width: 100%;
-            height: 100%; 
+            
+            /* 绝对居中布局 */
+            position: absolute;
+            top: 50%; width: 100%; height: calc(var(--card-height) + 100px); /* 留出翻转空间 */
+            transform: translateY(-50%);
+            
             align-items: center;
             padding: 0; 
             will-change: scroll-position;
         }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        /* 伪元素占位，实现首尾居中 */
+        /* 伪元素占位 */
         .card-scroller::before,
         .card-scroller::after {
             content: '';
@@ -85,7 +90,7 @@
         }
         .card-wrapper.active { z-index: 100; }
 
-        /* --- 咖啡卡片 --- */
+        /* --- 卡片本体 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -101,6 +106,7 @@
             box-shadow: var(--glass-shadow);
         }
 
+        /* 流光特效 */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
@@ -225,47 +231,33 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- 搜索页（负一屏） --- */
-        .search-wrapper {
-            /* 与卡片尺寸一致，作为第一个元素 */
-            position: relative;
-            flex: 0 0 var(--card-width);
-            height: var(--card-height);
-            scroll-snap-align: center;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1;
-        }
-
-        .search-box {
-            width: 100%;
+        /* --- 搜索卡片 (负一屏) --- */
+        .search-card {
             background: rgba(40, 40, 40, 0.4);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 24px;
-            padding: 20px;
-            box-sizing: border-box;
             backdrop-filter: blur(20px);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            border-radius: 40px;
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 30px; box-sizing: border-box;
         }
-
-        .search-title {
-            font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; text-align: center;
+        
+        .search-header {
+            font-size: 14px; text-transform: uppercase; letter-spacing: 2px;
+            color: rgba(255,255,255,0.4); margin-bottom: 30px;
         }
 
         .search-input {
             width: 100%; background: transparent; border: none;
             border-bottom: 1px solid rgba(255,255,255,0.2);
-            color: white; font-size: 24px; font-weight: 600;
-            padding: 10px 0; outline: none; text-align: center;
+            color: white; font-size: 28px; font-weight: 700;
+            padding: 15px 0; outline: none; text-align: center;
         }
         .search-input::placeholder { color: rgba(255,255,255,0.1); }
 
         .search-hint {
-            font-size: 12px; color: rgba(255,255,255,0.2); text-align: center; margin-top: 20px;
+            margin-top: 30px; font-size: 13px; color: rgba(255,255,255,0.25);
         }
 
         .status-toast {
@@ -274,10 +266,7 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        .loading-text { 
-            position: absolute; top: 50%; width: 100%; text-align: center; 
-            color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px;
-        }
+        .loading-text { position: absolute; top: 50%; width: 100%; text-align: center; color: #444; font-weight: 500; font-size: 24px; letter-spacing: 2px; }
     </style>
 </head>
 <body>
@@ -292,7 +281,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'CoffeeJournalDB_Pro_V18'; 
+    const DB_NAME = 'CoffeeJournalDB_Pro_V19'; // V19 Negative Screen
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     let db;
@@ -410,7 +399,7 @@
     const cardObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const cardWrapper = entry.target;
-            if(cardWrapper.id === 'add-card-wrapper' || cardWrapper.id === 'search-panel') return;
+            if(cardWrapper.id === 'add-card-wrapper' || cardWrapper.id === 'search-wrapper') return;
 
             const img = cardWrapper.querySelector('.bg-image');
             const id = parseInt(cardWrapper.getAttribute('data-id'));
@@ -450,51 +439,50 @@
     function handleSearch(query) {
         const lowerQuery = query.toLowerCase().trim();
         if (!lowerQuery) {
-            renderCardList(allCoffeesCache); // 恢复显示所有
+            renderCardList(allCoffeesCache);
             return;
         }
-        
         const filtered = allCoffeesCache.filter(c => 
             (c.name && c.name.toLowerCase().includes(lowerQuery))
         );
-        // 搜索时不需要滚动到第2个，显示第1个结果即可
         renderCardList(filtered, false); 
     }
 
-    // 渲染列表函数 (核心修改：添加搜索栏)
+    // 渲染列表函数 (包含负一屏)
     function renderCardList(list, isInitialLoad = false) {
-        scroller.innerHTML = ''; // 清空
+        scroller.innerHTML = '';
         
-        // 1. 渲染“负一屏”搜索栏
-        renderSearchPanel();
+        // 1. 渲染负一屏搜索卡片
+        renderSearchCard();
 
-        // 2. 渲染数据卡片
+        // 2. 渲染咖啡数据
         list.forEach(renderCard); 
         
         // 3. 渲染添加按钮
         renderAddButton();
         
-        // 4. 如果是首次加载，自动滚动到第一张咖啡卡片（跳过搜索栏）
+        // 4. 核心：首次加载时，瞬间跳转到第一张咖啡卡片（隐藏搜索卡片）
         if (isInitialLoad && list.length > 0) {
+            // 使用 setTimeout 确保 DOM 渲染完毕
             setTimeout(() => {
                 const firstCard = scroller.querySelector('.card-wrapper[data-id]');
                 if (firstCard) {
-                    firstCard.scrollIntoView({ inline: 'center' });
+                    firstCard.scrollIntoView({ inline: 'center', behavior: 'instant' }); // instant 瞬间跳转
                 }
-            }, 50); // 微小延迟确保渲染完成
+            }, 10);
         }
     }
 
-    // 渲染搜索面板
-    function renderSearchPanel() {
+    // 渲染搜索卡片
+    function renderSearchCard() {
         const wrapper = document.createElement('div');
-        wrapper.className = 'search-wrapper';
-        wrapper.id = 'search-panel';
+        wrapper.className = 'card-wrapper';
+        wrapper.id = 'search-wrapper'; // 标记为搜索卡片
         wrapper.innerHTML = `
-            <div class="search-box">
-                <div class="search-title">Search</div>
-                <input type="text" class="search-input" placeholder="Type name..." oninput="handleSearch(this.value)">
-                <div class="search-hint">Swipe left to browse collection</div>
+            <div class="search-card">
+                <div class="search-header">Search</div>
+                <input type="text" class="search-input" placeholder="Type Name..." oninput="handleSearch(this.value)">
+                <div class="search-hint">Swipe right for library</div>
             </div>
         `;
         scroller.appendChild(wrapper);
@@ -624,7 +612,6 @@
         const newCoffee = await addCoffee(roast);
         renderCardList(allCoffeesCache); 
         
-        // 滚动到新卡片
         setTimeout(() => {
             const cards = scroller.querySelectorAll('.card-wrapper[data-id]');
             if(cards.length > 0) {
@@ -654,7 +641,7 @@
     async function handleDelete(id) {
         if (confirm('Delete this card?')) {
             await deleteCoffee(id);
-            // 重新渲染列表（包含更新缓存）
+            // 重新渲染列表以更新索引
             renderCardList(allCoffeesCache);
         }
     }
@@ -674,7 +661,7 @@
         const scrollerRect = scroller.getBoundingClientRect();
         const centerPoint = scrollerRect.left + scrollerRect.width / 2;
 
-        const enableEffect = cards.length > 5; // 提高一点阈值
+        const enableEffect = cards.length > 5; 
 
         cards.forEach(card => {
             if (!enableEffect) {
