@@ -383,9 +383,10 @@
 
 <script>
     /* 
-       BeanDance V73 - Professional Fix for iPad Pro M1
-       Target: Fix "Immediate Disappear" & "Ghost Flash" issues.
-       Method: Exclusive Event Routing & Z-Index Layering.
+       BeanDance V74 - Final Logic & Rendering Fix
+       1. Logic: Migrated from Global Timer to Per-Card WeakMap Timer.
+       2. Interaction: Strict 3-State Machine (Direct/Wake/Action).
+       3. CSS: Removed conflicting 3D transforms to fix Safari flickering.
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -394,13 +395,15 @@
     const SEARCH_BG_ID = 0; 
     const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
+    const ICON_TIMEOUT = 3000; // 上传 icon 显示时长
     
     let db;
     let allCoffeesCache = [];
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    let revealTimer = null; 
+    // [逻辑修复1] 使用 WeakMap 替代全局变量，每张卡片独立管理自己的倒计时
+    const iconTimers = new WeakMap(); 
     let menuTimer; 
     let lastScrollLeft = -1; 
     
@@ -410,18 +413,18 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- [CSS 关键修复] ---
+    // --- [CSS 修复: 移除 3D Transform 冲突] ---
     const style = document.createElement('style');
     style.innerHTML = `
-        /* 1. 核心修复: SVG 穿透，确保 e.target 永远是 div */
+        /* 1. 穿透修复: SVG 不阻挡点击 */
         .upload-btn svg {
             pointer-events: none;
         }
-        /* 2. Safari 3D修复: 强制提升按钮 Z 轴，防止被背景遮挡判定 */
+        /* 2. 渲染修复: 移除 translateZ，避免与 scale 动画冲突导致闪烁 */
         .upload-btn {
             z-index: 100; 
-            transform: translateZ(20px); /* 物理抬升点击区 */
             cursor: pointer;
+            /* 保持默认 transform，不要强制 3D */
         }
         /* 3. 性能优化: 仅中心卡片开启昂贵的流光层 */
         .card-wrapper { will-change: transform; }
@@ -437,6 +440,46 @@
         }
     `;
     document.head.appendChild(style);
+
+    // --- [图标状态管理 Helper] ---
+    
+    // 单个卡片：隐藏上传 icon，并清理自己的 timer
+    function hideIconFor(wrapper) {
+        if (!wrapper) return;
+        wrapper.classList.remove('reveal-icon');
+        const oldTimer = iconTimers.get(wrapper);
+        if (oldTimer) {
+            clearTimeout(oldTimer);
+            iconTimers.delete(wrapper);
+        }
+    }
+
+    // 单个卡片：显示上传 icon，并启动/重置 3 秒计时
+    function showIconFor(wrapper) {
+        if (!wrapper) return;
+
+        // 互斥逻辑：只允许一张卡片的 icon 处于“唤醒”状态
+        document.querySelectorAll('.card-wrapper.reveal-icon').forEach(w => {
+            if (w !== wrapper) hideIconFor(w);
+        });
+
+        wrapper.classList.add('reveal-icon');
+
+        const oldTimer = iconTimers.get(wrapper);
+        if (oldTimer) clearTimeout(oldTimer);
+
+        const timerId = setTimeout(() => {
+            wrapper.classList.remove('reveal-icon');
+            iconTimers.delete(wrapper);
+        }, ICON_TIMEOUT);
+
+        iconTimers.set(wrapper, timerId);
+    }
+
+    // 全部卡片：统一收起
+    function hideAllIcons() {
+        document.querySelectorAll('.card-wrapper.reveal-icon').forEach(hideIconFor);
+    }
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -598,7 +641,7 @@
             showToast('ERROR');
         });
         
-        hideAllIcons(); 
+        // [逻辑修复3] 不要在这里 hideAllIcons，让 showIconFor 的 3s 计时自然结束
     }
 
     function updateImageDOM(wrapper, blob) {
@@ -610,15 +653,6 @@
             img.style.opacity = 1;
             wrapper.classList.add('has-image');
         }
-    }
-
-    function hideAllIcons() {
-        // [核心] 必须先清除定时器，防止"僵尸"定时器在3s后触发
-        if (revealTimer) {
-            clearTimeout(revealTimer);
-            revealTimer = null;
-        }
-        document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
     }
 
     function processImage(file) {
@@ -719,56 +753,46 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- [核心修复] 排他性交互逻辑 (Exclusive Routing) ---
+    // --- [逻辑修复2] 严格的事件路由 ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
 
-            // 0. 防御：如果是 JS 触发的 Input 本身，直接退出，防止递归
+            // 0. 防御：如果是 JS 触发的 Input 本身，直接退出
             if (t.tagName === 'INPUT' && t.type === 'file') return;
 
-            // 1. 【按钮逻辑区】 - 优先级最高
+            // 1. 【按钮逻辑区】 - 核心交互重构
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                e.stopPropagation(); // 阻止冒泡，防止触发卡片翻转
+                // 非常关键：彻底把这个 click 事件“抓住”，避免 Safari 额外派发奇怪的冒泡
+                e.stopPropagation();
+                e.preventDefault();
 
-                const wrapper = uploadBtn.closest('.card-wrapper');
-                const hasImage = wrapper.classList.contains('has-image');
+                const wrapper   = uploadBtn.closest('.card-wrapper');
+                const hasImage  = wrapper.classList.contains('has-image');
                 const isRevealed = wrapper.classList.contains('reveal-icon');
                 const fileInput = uploadBtn.querySelector('input');
 
-                // Case A: 无图 -> 直接触发 Input
+                // --- Case A：无图 -> icon 常在，点击 = 直接选图 ---
                 if (!hasImage) {
-                    if(fileInput) fileInput.click();
-                    return; // 结束执行！绝不往下走
+                    if (fileInput) fileInput.click();
+                    return;
                 }
 
-                // Case B: 有图
-                if (hasImage) {
-                    if (isRevealed) {
-                        // B2: 已唤醒 -> 触发 Input (换图)
-                        if(fileInput) fileInput.click();
-                        
-                        // 重置倒计时，让图标继续显示一会
-                        if (revealTimer) clearTimeout(revealTimer);
-                        revealTimer = setTimeout(() => {
-                            wrapper.classList.remove('reveal-icon');
-                            revealTimer = null;
-                        }, 3000);
-                    } else {
-                        // B1: 未唤醒 -> 仅显示图标 (拦截 Input)
-                        hideAllIcons(); // 清理其他
-                        wrapper.classList.add('reveal-icon'); 
-                        
-                        // 启动 3s 倒计时
-                        if (revealTimer) clearTimeout(revealTimer);
-                        revealTimer = setTimeout(() => {
-                            wrapper.classList.remove('reveal-icon');
-                            revealTimer = null;
-                        }, 3000);
-                    }
-                    return; // 结束执行！确保 hideAllIcons 不会在下面被调用
+                // --- Case B：有图 ---
+                if (!isRevealed) {
+                    // B1：第一次点击，仅唤醒 icon，3 秒自动隐藏
+                    showIconFor(wrapper);
+                    return;
                 }
+
+                // B2：已唤醒状态下再次点击 -> 换图
+                if (fileInput) {
+                    // 再点一次，认为是“确认要换图”，顺便重置 3s，让用户从文件选择返回后 icon 还能存在一小会
+                    showIconFor(wrapper);
+                    fileInput.click();
+                }
+                return;
             }
 
             // 2. 【功能逻辑区】
@@ -778,7 +802,6 @@
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
                 if (t.classList.contains('btn-import')) { document.getElementById('json-import-input').click(); return; }
                 if (t.classList.contains('add-menu-btn')) {
-                    // ... roast selection ...
                     let roast = 'medium';
                     if (t.classList.contains('opt-light')) roast = 'light';
                     else if (t.classList.contains('opt-dark')) roast = 'dark';
@@ -791,12 +814,11 @@
                     addCard.classList.remove('active'); 
                     menuTimer = null;
                 }, 3000);
-                return; // 结束执行
+                return;
             }
 
-            // 3. 【清理逻辑区】 - 优先级最低
-            // 如果代码执行到这里，说明用户点击的既不是 uploadBtn 也不是 addCard
-            // 此时可以安全地清理所有图标
+            // 3. 【清理逻辑区】
+            // 如果点击的不是功能区，也不是 Input，统一收起
             if (!t.closest('input')) {
                 hideAllIcons();
             }
@@ -804,7 +826,7 @@
             // 4. 【卡片翻转/操作逻辑】
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
-            if (t.closest('input')) return; // Input 点击不处理
+            if (t.closest('input')) return; 
 
             if (t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
@@ -821,9 +843,38 @@
             }
         });
 
-        // 辅助事件监听 (保持不变)
-        scroller.addEventListener('focusout', (e) => { /* ... */ });
-        scroller.addEventListener('input', (e) => { /* ... */ });
+        // 辅助监听
+        scroller.addEventListener('focusout', (e) => {
+            const input = e.target;
+            if (input.tagName === 'INPUT') {
+                const wrapper = input.closest('.card-wrapper');
+                let key = null;
+                if (input.classList.contains('app-brand-title-input') || input.classList.contains('app-brand-author-input')) key = 'meta';
+                else if (wrapper) {
+                    const id = parseInt(wrapper.dataset.id);
+                    if (id > 0) key = `coffee-${id}`;
+                }
+                if (key) flushSave(key);
+            }
+        });
+
+        scroller.addEventListener('input', (e) => {
+            const input = e.target;
+            const wrapper = input.closest('.card-wrapper');
+            if(!wrapper) return;
+
+            if (input.classList.contains('app-brand-title-input')) return updateMetadata('title', input.value);
+            if (input.classList.contains('app-brand-author-input')) return updateMetadata('author', input.value);
+
+            const id = parseInt(wrapper.dataset.id);
+            if(id > 0) {
+                if(input.classList.contains('title-input')) {
+                    wrapper.querySelector('h2').innerText = input.value || 'Coffee';
+                    updateCoffee(id, 'name', input.value);
+                } else if(input.dataset.field) updateCoffee(id, input.dataset.field, input.value);
+            }
+        });
+
         scroller.addEventListener('change', (e) => {
             if(e.target.type === 'file' && (e.target.classList.contains('card-input') || e.target.classList.contains('bg-input'))) {
                 const wrapper = e.target.closest('.card-wrapper');
@@ -835,7 +886,7 @@
         });
     }
 
-    // --- Initialization (No changes needed here) ---
+    // --- Initialization ---
     async function initApp() {
         try {
             await initDB(); 
