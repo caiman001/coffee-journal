@@ -383,9 +383,9 @@
 
 <script>
     /* 
-       BeanDance V75 - iPad Pro M1 Ultimate Fix
-       Method: Hybrid Touch/Click State Machine with Ghost-Click Protection.
-       Status: Stable for High-Refresh Touch Screens.
+       BeanDance V80 - Native Stability Fix
+       Logic: Pure CSS visibility control + Native <label> interaction.
+       Target: iPad Pro 11" (M1) Safari.
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -394,18 +394,12 @@
     const SEARCH_BG_ID = 0; 
     const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
-    const ICON_TIMEOUT = 3000;
     
     let db;
     let allCoffeesCache = [];
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    // 状态管理容器
-    const iconTimers = new WeakMap();      // 卡片定时器
-    const justRevealedMap = new WeakMap(); // 标记"刚刚唤醒"状态
-    let lastBtnTouchTime = 0;              // 全局触摸时间戳，用于防抖和防误杀
-    
     let menuTimer; 
     let lastScrollLeft = -1; 
     
@@ -415,22 +409,30 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- [CSS 修复: 实体化点击区] ---
+    // --- [CSS 重构: 纯视觉控制] ---
     const style = document.createElement('style');
     style.innerHTML = `
-        /* 1. 穿透修复 */
-        .upload-btn svg { pointer-events: none; }
-        
-        /* 2. 实体化修复: 给一个微弱的背景色，强制 Safari 渲染点击响应区，解决点击穿透 */
+        /* 1. 上传按钮样式重置 */
         .upload-btn {
-            z-index: 100; 
+            z-index: 50; /* 保证在最上层，可点击 */
             cursor: pointer;
-            background-color: rgba(255, 255, 255, 0.01); /* 关键: 0.01 不透明度 */
-            /* 扩大一点点击范围 */
-            top: 15px; right: 15px; width: 60px; height: 60px;
+            transition: opacity 0.2s ease;
+            opacity: 1; /* 默认常显 */
         }
 
-        /* 3. 性能优化 */
+        /* 2. 有图时的逻辑：视觉隐藏，但物理存在 */
+        .card-wrapper.has-image .upload-btn {
+            opacity: 0; /* 看不见 */
+            /* 关键：不要加 pointer-events: none，保证它依然能被点中 */
+        }
+
+        /* 3. 交互反馈：按住不可见区域时，稍微显示一点，给用户反馈 */
+        .card-wrapper.has-image .upload-btn:active {
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+
+        /* 4. 性能优化 */
         .card-wrapper { will-change: transform; }
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
@@ -444,47 +446,6 @@
         }
     `;
     document.head.appendChild(style);
-
-    // --- [图标状态逻辑] ---
-
-    function hideIconFor(wrapper) {
-        if (!wrapper) return;
-        wrapper.classList.remove('reveal-icon');
-        const oldTimer = iconTimers.get(wrapper);
-        if (oldTimer) {
-            clearTimeout(oldTimer);
-            iconTimers.delete(wrapper);
-        }
-    }
-
-    function showIconFor(wrapper) {
-        if (!wrapper) return;
-        
-        // 互斥：隐藏其他卡片的图标
-        document.querySelectorAll('.card-wrapper.reveal-icon').forEach(w => {
-            if (w !== wrapper) hideIconFor(w);
-        });
-
-        wrapper.classList.add('reveal-icon');
-
-        // 重置定时器
-        const oldTimer = iconTimers.get(wrapper);
-        if (oldTimer) clearTimeout(oldTimer);
-
-        const timerId = setTimeout(() => {
-            wrapper.classList.remove('reveal-icon');
-            iconTimers.delete(wrapper);
-        }, ICON_TIMEOUT);
-
-        iconTimers.set(wrapper, timerId);
-    }
-
-    // 全局清理 (带保护机制)
-    function safeHideAllIcons() {
-        // [核心修复] 如果 500ms 内摸过按钮，说明现在的"点击空白"可能是误判，拒绝执行清理
-        if (Date.now() - lastBtnTouchTime < 500) return;
-        document.querySelectorAll('.card-wrapper.reveal-icon').forEach(hideIconFor);
-    }
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -645,8 +606,6 @@
             console.error(err);
             showToast('ERROR');
         });
-        
-        // 注意：不在这里调用 hideIcon，让 3s 倒计时自然结束
     }
 
     function updateImageDOM(wrapper, blob) {
@@ -747,21 +706,6 @@
     scroller.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
-        
-        // [核心修复] 在 Touch 阶段就拦截按钮意图，这比 Click 更早更准
-        const btn = e.target.closest('.upload-btn');
-        if (btn) {
-            lastBtnTouchTime = Date.now(); // 记录时间戳，用于"熔断保护"
-            const wrapper = btn.closest('.card-wrapper');
-            const isRevealed = wrapper.classList.contains('reveal-icon');
-            const hasImage = wrapper.classList.contains('has-image');
-            
-            // 如果是有图且未唤醒，在这里预处理 (可选，主要为了更新时间戳)
-            if (hasImage && !isRevealed) {
-                // 标记意图，但不立即 show，让 click 处理，避免双重触发
-                justRevealedMap.set(wrapper, true); 
-            }
-        }
     }, { passive: true });
     
     scroller.addEventListener('touchend', e => {
@@ -773,55 +717,23 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- 事件代理 (Hybrid Logic) ---
+    // --- 极简主义事件代理 ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
 
-            // 0. 防御递归
-            if (t.tagName === 'INPUT' && t.type === 'file') return;
-
-            // 1. 【按钮逻辑】
+            // 1. 上传按钮逻辑 - 回归原生
+            // 我们不需要手动触发 input.click()，因为我们把 HTML 改回了 <label>。
+            // 只要点击它，浏览器就会自动处理文件选择。
+            // 我们唯一要做的是：阻止这个点击冒泡，防止卡片翻转。
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                e.stopPropagation();
-                e.preventDefault(); // 暂时阻止 Input 自动开启，改为下面手动 trigger
-
-                const wrapper = uploadBtn.closest('.card-wrapper');
-                const hasImage = wrapper.classList.contains('has-image');
-                const isRevealed = wrapper.classList.contains('reveal-icon');
-                const fileInput = uploadBtn.querySelector('input');
-
-                // Case A: 无图 -> 选图
-                if (!hasImage) {
-                    if (fileInput) fileInput.click();
-                    return;
-                }
-
-                // Case B: 有图
-                if (!isRevealed) {
-                    // B1: 唤醒
-                    showIconFor(wrapper);
-                    // 标记状态，防止 Touchstart 里的逻辑打架（虽然 Touchstart 是 passive 的）
-                    return;
-                } else {
-                    // B2: 换图
-                    // 这里有一个关键点：如果是 touchstart 刚刚标记了 justRevealed，
-                    // 说明这次点击其实是唤醒动作的"余波"，不应该触发选图
-                    if (justRevealedMap.get(wrapper)) {
-                        justRevealedMap.delete(wrapper);
-                        // 这是一个"刚唤醒"的点击，showIconFor 已经运行了，这里什么都不做，只是消耗掉这次 click
-                        return;
-                    }
-                    
-                    // 正常的第二次点击 -> 换图
-                    showIconFor(wrapper); // 刷新计时器
-                    if (fileInput) fileInput.click();
-                    return;
-                }
+                e.stopPropagation(); 
+                // [关键] 不要调用 preventDefault()，否则会阻止文件选择器弹出！
+                return;
             }
 
-            // 2. 【功能逻辑】
+            // 2. Add Card Logic
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -842,14 +754,7 @@
                 return;
             }
 
-            // 3. 【清理逻辑】
-            // 如果不是 Input，也不是上面处理过的按钮，尝试清理
-            if (!t.closest('input')) {
-                // [熔断] 调用安全的清理函数
-                safeHideAllIcons();
-            }
-
-            // 4. 【卡片翻转】
+            // 3. Card Flip Logic
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
             if (t.closest('input')) return; 
@@ -940,7 +845,7 @@
         }
     }
 
-    // --- Render Functions (Use DIV for upload-btn) ---
+    // --- Render Functions (重要：回归 <label>) ---
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -955,7 +860,7 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <div class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></div>
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -981,7 +886,7 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <div class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></div>
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
