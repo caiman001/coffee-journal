@@ -753,34 +753,36 @@
             // --- 核心修复 2：绝对稳固的 Upload Icon 逻辑 ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                // 如果没图：直接穿透，触发 input 默认行为
+                // 1. 无图情况：不做任何干预，直接 return。
+                // 浏览器会执行 label 的默认行为 -> 自动打开文件选择器
                 if (!wrapper.classList.contains('has-image')) return;
 
-                // 如果有图，拦截默认行为，开始逻辑判断
+                // 2. 有图情况：需要分状态处理
+                const currentCardId = wrapper.dataset.id;
+                const isRevealed = activeUploadCardId === currentCardId && wrapper.classList.contains('reveal-icon');
+
+                if (isRevealed) {
+                    // [状态：图标已显示] -> 用户想要换图
+                    // 逻辑：重置 3s 倒计时，允许浏览器默认行为发生
+                    
+                    if (revealTimer) clearTimeout(revealTimer);
+                    revealTimer = setTimeout(() => hideAllIcons(), 3000); // 续命 3秒
+                    
+                    // 【重要】这里直接 return，不要调用 preventDefault()
+                    // 让 <label> 标签的自然点击事件穿透，浏览器会自动触发 input 弹出相册
+                    return; 
+                } 
+                
+                // [状态：图标隐藏] -> 用户想要唤醒图标
+                // 逻辑：阻止默认行为（不弹相册），显示图标，设置 3s 倒计时
                 e.preventDefault(); 
                 e.stopPropagation();
 
-                const currentCardId = wrapper.dataset.id;
-
-                // 状态A：当前图标已显示 -> 续命倒计时，并手动触发文件选择
-                if (activeUploadCardId === currentCardId && wrapper.classList.contains('reveal-icon')) {
-                    if (revealTimer) clearTimeout(revealTimer);
-                    // 重置倒计时，确保用户选图时图标不消失
-                    revealTimer = setTimeout(() => hideAllIcons(), 2000);
-                    
-                    // 手动触发 input
-                    const fileInput = uploadBtn.querySelector('input[type="file"]');
-                    if (fileInput) fileInput.click();
-                    return;
-                }
-
-                // 状态B：图标未显示 (或在其他卡片上) -> 清理旧状态 -> 显示当前 -> 倒计时
-                hideAllIcons(); // 关键：先清场
-
+                hideAllIcons(); // 清理其他卡片状态
                 wrapper.classList.add('reveal-icon');
                 activeUploadCardId = currentCardId;
                 
-                revealTimer = setTimeout(() => hideAllIcons(), 2000);
+                revealTimer = setTimeout(() => hideAllIcons(), 3000);
                 return;
             }
 
