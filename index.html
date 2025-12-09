@@ -383,10 +383,10 @@
 
 <script>
     /* 
-       BeanDance V71 - iPad Pro Stable Fix
-       1. Interaction: Fixed "Ghost Click" causing icon to disappear immediately.
-       2. Event: Added pointer-events:none to SVGs to ensure solid hit testing.
-       3. Performance: Kept GPU optimization for smooth scrolling.
+       BeanDance V72 - iPad Pro Deep Fix
+       1. Event Logic: Added Time-Gate to Global Cleanup to prevent "Ghost Click" auto-close.
+       2. CSS: Enhanced Hit-Testing area and Z-Axis placement for Safari 3D rendering.
+       3. Interaction: Strict DIV-based control (No Label) for file inputs.
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -404,7 +404,7 @@
     let revealTimer = null; 
     let menuTimer; 
     let lastScrollLeft = -1; 
-    let lastButtonActionTime = 0; // [修复核心] 用于防止幽灵点击
+    let lastButtonActionTime = 0; // [核心修复] 全局时间锁
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
@@ -412,22 +412,23 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- [CSS 修复 & 性能优化] ---
+    // --- [CSS 修复: 针对 Safari 3D 点击判定] ---
     const style = document.createElement('style');
     style.innerHTML = `
-        /* [关键修复] 确保点击 SVG 时，目标永远是 .upload-btn，防止 closest 判空 */
+        /* 1. 穿透修复: SVG 不阻挡点击，确保 target 也是 div */
         .upload-btn svg {
             pointer-events: none;
         }
-        /* 提升按钮层级，防止被流光遮挡 */
+        /* 2. 判定修复: 给按钮透明背景，确保 Safari 认为它是实体可点击层 */
         .upload-btn {
-            z-index: 20;
+            z-index: 50; /* 极高层级 */
+            background-color: rgba(255,255,255,0.001); /* 强制实体化点击区 */
+            transform: translateZ(10px); /* [关键] 在 3D 空间中物理抬升，避免与卡片背景重叠 */
         }
-        /* 性能优化：卡片常驻 GPU 层 */
+        /* 3. 性能: 保持 GPU 优化 */
         .card-wrapper {
             will-change: transform;
         }
-        /* 性能优化：非 Active 卡片隐藏流光层 */
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
             animation: none !important;
@@ -721,25 +722,24 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- 核心修复：Strict Interaction Logic ---
+    // --- 核心修复：Time-Gated Logic ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             const now = Date.now();
 
-            // [修复] 如果事件源是 JS 触发的 Input 本身，忽略，防止死循环
+            // 防递归：如果是 JS 触发的 input click，直接忽略
             if (t.tagName === 'INPUT' && t.type === 'file') return;
             
-            // 1. Upload Icon Logic (Fixed for iPad Ghosts)
+            // 1. Upload Icon Logic
             const uploadBtn = t.closest('.upload-btn');
             
             if (uploadBtn) {
-                // 阻止冒泡
                 e.stopPropagation();
 
-                // [修复] 防止短时间内重复触发（幽灵点击）
+                // [修复] 按钮防抖: 300ms 内只允许一次逻辑执行
                 if (now - lastButtonActionTime < 300) return;
-                lastButtonActionTime = now;
+                lastButtonActionTime = now; // 记录本次有效点击时间
 
                 const wrapper = uploadBtn.closest('.card-wrapper');
                 const hasImage = wrapper.classList.contains('has-image');
@@ -747,27 +747,27 @@
                 
                 const fileInput = uploadBtn.querySelector('input');
 
-                // 场景 A: 无图 -> 直接触发
+                // A: 无图 -> 选图
                 if (!hasImage) {
                     if(fileInput) fileInput.click();
                     return; 
                 }
 
-                // 场景 B: 有图
+                // B: 有图
                 if (hasImage) {
                     if (isRevealed) {
-                        // 场景 B2: 已唤醒 -> 换图
+                        // B2: 已唤醒 -> 选图
                         if(fileInput) fileInput.click();
                         
-                        // 重置计时器
+                        // 重置3s
                         if (revealTimer) clearTimeout(revealTimer);
                         revealTimer = setTimeout(() => {
                             wrapper.classList.remove('reveal-icon');
                             revealTimer = null;
                         }, 3000);
                     } else {
-                        // 场景 B1: 未唤醒 -> 唤醒
-                        hideAllIcons(); // 清理其他
+                        // B1: 未唤醒 -> 唤醒
+                        hideAllIcons(); 
                         wrapper.classList.add('reveal-icon'); 
                         
                         if (revealTimer) clearTimeout(revealTimer);
@@ -780,15 +780,16 @@
                 }
             }
 
-            // 2. Global Cleanup - [修复] 只有点到特定区域才清理
-            // 不要因为点击了图标的一点点边缘（导致 closest 失败）就触发清理
-            // 我们检查是否点到了卡片容器或背景占位符，或者是输入框以外的地方
+            // 2. Global Cleanup with TIME GUARD (The Solution)
+            // 核心逻辑：如果过去 500ms 内发生过按钮点击，说明当前的点击可能是"幽灵点击"或误判，
+            // 此时禁止执行 hideAllIcons()，保护图标状态。
             const isInput = t.closest('input');
             const isClickable = t.closest('.btn-text') || t.closest('.add-menu-btn') || t.closest('.btn-io');
             
-            // 只有当点击的不是输入框，也不是功能按钮，且不是 uploadBtn (上面已处理) 时，才执行清理
             if (!isInput && !isClickable && !uploadBtn) {
-                hideAllIcons();
+                if (now - lastButtonActionTime > 500) {
+                    hideAllIcons();
+                }
             }
 
             // 3. Add Card Logic
@@ -826,7 +827,6 @@
 
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
-                
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
