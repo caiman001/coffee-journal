@@ -383,10 +383,10 @@
 
 <script>
     /* 
-       BeanDance V67 - iPad Pro Logic Perfected
+       BeanDance V68 - iPad Pro Refined
        Fixes: 
-       1. Upload Icon State Machine (Wake -> 3s Wait -> Action)
-       2. Event Propagation (Stop card flipping when clicking icon)
+       1. Icon Interaction: Strict Event Interception for Label/Input
+       2. Scroll Smoothness: Dynamic GPU Layer Management (The "Stutter" Fix)
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -401,7 +401,7 @@
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    let revealTimer = null; // 控制图标显示的定时器
+    let revealTimer = null; 
     let menuTimer; 
     
     const scroller = document.getElementById('scroller');
@@ -410,17 +410,25 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- GPU Performance Optimization ---
-    // 仅允许当前激活的卡片播放旋转动画，解决有图滑动卡顿问题
+    // --- [针对问题2优化] 极致的性能优化样式注入 ---
+    // 解释：针对 iPad Pro 高刷屏，只有 .active (当前聚焦) 的卡片才渲染流光动画。
+    // 其他卡片直接 display: none 隐藏该图层，彻底释放 GPU 算力，解决滑动卡顿。
     const style = document.createElement('style');
     style.innerHTML = `
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
-            animation-play-state: paused !important;
-            display: none; 
+            animation: none !important;
+            display: none !important; 
+            content: none !important; /* 强制移除伪元素渲染 */
         }
         .card-wrapper.active .card-front::after {
-            display: block;
+            display: block !important;
+            /* 保持原有动画定义 */
+            content: '' !important;
+        }
+        /* 优化滑动时的图层提升 */
+        .card-wrapper {
+            will-change: transform, opacity;
         }
     `;
     document.head.appendChild(style);
@@ -585,7 +593,7 @@
             showToast('ERROR');
         });
         
-        hideAllIcons(); // 上传完毕清理状态
+        hideAllIcons(); 
     }
 
     function updateImageDOM(wrapper, blob) {
@@ -617,8 +625,7 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    // 优化：iPad Pro 渲染性能优化，限制最大纹理尺寸
-                    const maxDim = 800; 
+                    const maxDim = 800; // iPad Pro Optimized
                     let w = img.width, h = img.height;
                     if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
                     else { if (h > maxDim) { w *= maxDim/h; h = maxDim; } }
@@ -707,64 +714,60 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- 核心交互逻辑修复 (State Machine & Event Control) ---
+    // --- [针对问题1优化] 核心交互逻辑修复 ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- 1. Upload Icon Logic ---
+            // 1. Upload Icon Logic - 严格的状态机控制
             const uploadBtn = t.closest('.upload-btn');
             
             if (uploadBtn) {
-                // [关键修复]：阻止事件冒泡，防止触发卡片翻转
+                // [关键修复]：绝对阻止冒泡，防止点击图标导致卡片翻转
                 e.stopPropagation();
 
                 const wrapper = uploadBtn.closest('.card-wrapper');
-                
-                // 情况A：卡片没有图片
-                // 需求：无图常在，点击直接选图
-                if (!wrapper.classList.contains('has-image')) {
-                    // 不调用 preventDefault，让 <label> 默认触发 input
+                const hasImage = wrapper.classList.contains('has-image');
+                const isRevealed = wrapper.classList.contains('reveal-icon');
+
+                // 场景 A: 没图片 -> 允许默认行为 (Input 打开)
+                if (!hasImage) {
+                    // 不需要 preventDefault，浏览器会自动处理 Label -> Input 的触发
                     return; 
                 }
 
-                // 情况B：卡片有图片
-                // 需求：默认隐藏，点一下唤醒(3s)，再点一下才选图
-                const isRevealed = wrapper.classList.contains('reveal-icon');
-
-                if (isRevealed) {
-                    // 状态：已唤醒，正在3s窗口期内
-                    // 动作：再次点击 -> 执行换图
-                    // 逻辑：允许默认行为 (Input触发)
-                    return;
-                } else {
-                    // 状态：隐藏 (静默态)
-                    // 动作：首次点击 -> 唤醒图标
-                    // 逻辑：阻止默认行为 (不打开Input)，显示图标，开始倒计时
-                    e.preventDefault(); 
-                    
-                    hideAllIcons(); // 清理其他卡片可能存在的倒计时
-                    
-                    wrapper.classList.add('reveal-icon');
-                    
-                    // 3s 后自动隐藏
-                    if (revealTimer) clearTimeout(revealTimer);
-                    revealTimer = setTimeout(() => {
-                        wrapper.classList.remove('reveal-icon');
-                        revealTimer = null;
-                    }, 3000);
-                    
-                    return;
+                // 场景 B: 有图片
+                if (hasImage) {
+                    if (isRevealed) {
+                        // 子场景 B2: 图标已经唤醒 -> 再次点击 -> 换图
+                        // 允许默认行为 (Input 打开)
+                        return;
+                    } else {
+                        // 子场景 B1: 图标隐藏 -> 首次点击 -> 唤醒图标
+                        // [核心修复] 必须调用 preventDefault，否则文件选择器会直接弹出来
+                        e.preventDefault(); 
+                        
+                        hideAllIcons(); // 关闭其他图标
+                        wrapper.classList.add('reveal-icon'); // 显示当前
+                        
+                        // 3秒无操作自动隐藏
+                        if (revealTimer) clearTimeout(revealTimer);
+                        revealTimer = setTimeout(() => {
+                            wrapper.classList.remove('reveal-icon');
+                            revealTimer = null;
+                        }, 3000);
+                        
+                        return;
+                    }
                 }
             }
 
-            // --- 2. Global Cleanup ---
-            // 点击任何非 Input 区域，清理图标状态
+            // 2. Global Cleanup
             if (!t.closest('input')) {
                 hideAllIcons();
             }
 
-            // --- 3. Add Card Logic ---
+            // 3. Add Card Logic
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -785,7 +788,7 @@
                 return;
             }
 
-            // --- 4. Card Flip Logic ---
+            // 4. Card Flip Logic
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
             if (t.closest('input')) return;
@@ -797,8 +800,7 @@
             }
             if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
-            // [逻辑说明] 由于我们在上面对 uploadBtn 执行了 stopPropagation
-            // 这里只有点击卡片非按钮区域才会执行，不再会有“误触翻转”的问题
+            // 翻转逻辑 (得益于上面的 stopPropagation，现在点击 Icon 不会触发这里了)
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
                 
