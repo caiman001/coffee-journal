@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V52 Stable</title>
+    <title>BeanDance V53 Final Perfect</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -461,12 +461,11 @@
             return;
         }
 
-        // --- 核心修复：防止僵尸数据复活 ---
+        // --- 核心修复：防止僵尸数据复活 (Fix for pending saves resurrecting deleted cards) ---
         const key = `coffee-${id}`;
         if (debounceMap.has(key)) {
             clearTimeout(debounceMap.get(key).timer);
             debounceMap.delete(key);
-            // 这里不需要调用 flushSave，因为我们是要“毁灭”它，不是“保存”它
         }
 
         const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -491,6 +490,7 @@
         const file = e.target.files[0];
         if(!file) return;
         showToast('PROCESSING...');
+        
         processImage(file).then(blob => {
             if (id === SEARCH_BG_ID) {
                 saveToDB(SEARCH_BG_ID, { imageData: blob });
@@ -512,13 +512,20 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
+        
+        // --- 核心修复：上传完成后，强制清理计时器 ---
+        if (revealTimer) {
+            clearTimeout(revealTimer);
+            revealTimer = null;
+        }
+
         const img = wrapper.querySelector('.bg-image');
         if(img) {
             if(img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
             img.src = URL.createObjectURL(blob);
             img.style.opacity = 1;
             wrapper.classList.add('has-image');
-            wrapper.classList.remove('reveal-icon');
+            wrapper.classList.remove('reveal-icon'); // 确保隐藏，等待用户下次点击
         }
     }
 
@@ -623,15 +630,31 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
+            // --- 核心修复：Upload Icon 交互逻辑 ---
             if (t.closest('.upload-btn')) {
                 if (wrapper.classList.contains('has-image')) {
-                    if (wrapper.classList.contains('reveal-icon')) return; 
+                    
+                    // 场景A：图标已显示，用户点击是为了打开文件选择器
+                    // 修复：此时必须停止倒计时，防止在选择文件时图标自动消失导致逻辑错乱
+                    if (wrapper.classList.contains('reveal-icon')) {
+                        if (revealTimer) {
+                            clearTimeout(revealTimer);
+                            revealTimer = null;
+                        }
+                        return; // 允许默认事件（打开文件）
+                    }
 
+                    // 场景B：图标隐藏，用户点击是为了显示图标
                     e.preventDefault(); 
+                    
+                    // 1. 清理旧状态（防止点击Card A后再点Card B导致状态叠加）
                     if (revealTimer) clearTimeout(revealTimer);
                     document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
 
+                    // 2. 显示当前
                     wrapper.classList.add('reveal-icon');
+                    
+                    // 3. 启动新倒计时
                     revealTimer = setTimeout(() => {
                         wrapper.classList.remove('reveal-icon');
                         revealTimer = null;
