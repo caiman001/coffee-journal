@@ -681,7 +681,7 @@
         e.target.value = '';
     }
 
-    // --- 搜索功能 (Feature 2 Refined: Click anywhere to close) ---
+    // --- 搜索功能 ---
     function activateSearch() {
         searchOverlay.classList.add('active');
         searchInput.focus();
@@ -712,14 +712,15 @@
         }
     });
 
-    // --- 手势识别 ---
+    // --- 手势识别 (Fix #2: 使用 passive 监听解决卡顿) ---
     let touchStartX = 0;
     let touchStartY = 0;
     
+    // 关键优化：{ passive: true } 告诉浏览器 "我不会阻止滚动"，从而解锁渲染线程
     scroller.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
-    });
+    }, { passive: true });
     
     scroller.addEventListener('touchend', e => {
         const touchEndX = e.changedTouches[0].clientX;
@@ -734,9 +735,7 @@
         }
     });
 
-    // New Interaction Logic: Click overlay to close, but not capsule
     searchOverlay.addEventListener('click', (e) => {
-        // 如果点击的是背景遮罩层，则关闭
         if (e.target === searchOverlay) {
             deactivateSearch();
         }
@@ -746,42 +745,48 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- 1. Upload Icon Logic (Feature 1 Update: Longer Timer) ---
+            // --- 1. Upload Icon Logic (Fix #1: 3s 显隐逻辑完善) ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
                 const wrapper = uploadBtn.closest('.card-wrapper');
-                if (!wrapper.classList.contains('has-image')) return;
+                
+                // 仅针对有图卡片处理特殊逻辑
+                if (wrapper.classList.contains('has-image')) {
+                    const isCurrentlyRevealed = wrapper.classList.contains('reveal-icon');
 
-                const currentCardId = wrapper.dataset.id;
-                const isCurrentlyRevealed = wrapper.classList.contains('reveal-icon');
-
-                if (revealTimer) {
-                    clearTimeout(revealTimer);
-                    revealTimer = null;
+                    if (isCurrentlyRevealed) {
+                        // 状态：已显示。再次点击 -> 此时不应该阻止默认行为（让 input file 触发）
+                        // 逻辑：允许系统文件选择器打开。我们可以在这里清除定时器，
+                        // 或者让它自然超时。为了体验，我们暂时不清除，让用户选择回来后自动消失。
+                        return; 
+                    } else {
+                        // 状态：隐藏。首次点击 -> 阻止 input，显示图标，开始 3s 倒计时
+                        e.preventDefault(); 
+                        
+                        hideAllIcons(); // 关闭其他已开启的
+                        wrapper.classList.add('reveal-icon');
+                        activeUploadCardId = wrapper.dataset.id;
+                        
+                        // 严格 3秒 逻辑
+                        if (revealTimer) clearTimeout(revealTimer);
+                        revealTimer = setTimeout(() => {
+                            wrapper.classList.remove('reveal-icon');
+                            revealTimer = null;
+                        }, 3000);
+                        
+                        return;
+                    }
                 }
-
-                if (isCurrentlyRevealed) {
-                    // 用户要选图了：给予超长倒计时 (6s)，确保从系统相册回来时图标不消失
-                    revealTimer = setTimeout(() => hideAllIcons(), 6000); 
-                    return; 
-                } else {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    hideAllIcons(); 
-                    
-                    wrapper.classList.add('reveal-icon');
-                    activeUploadCardId = currentCardId;
-                    
-                    // 修改：延长至 5000ms，让用户有充足反应时间
-                    revealTimer = setTimeout(() => hideAllIcons(), 5000);
-                    return;
-                }
+                // 如果没有图片 (has-image 不存在)，直接穿透，打开文件选择
             }
 
             // --- 2. Global Cleanup Logic ---
             if (!t.closest('input')) {
-                hideAllIcons();
+                // 如果点的不是 Input，也不是 Upload 按钮的内部（上面已处理），清理图标
+                // 注意：这里需要排除掉刚才点击 uploadBtn 的情况，否则会立即关闭
+                if (!uploadBtn) {
+                    hideAllIcons();
+                }
             }
 
             // --- 3. Other Card Logic ---
@@ -1000,7 +1005,6 @@
         scroller.appendChild(wrapper);
     }
 
-    // --- 核心修复 3：统一动画计算 ---
     function animateCards() {
         const wrappers = scroller.children;
         const scrollLeft = scroller.scrollLeft;
@@ -1015,6 +1019,7 @@
 
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
+            // 简单判断 display，避免不必要的计算
             if (card.style.display === 'none') continue;
             
             const cardCenterX = startOffset + visibleIndex * itemWidth - scrollLeft + halfCard;
@@ -1023,7 +1028,6 @@
             const dist = Math.abs(center - cardCenterX);
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
-            // 统一的物理公式，确保所有卡片（包括首页）滑动感一致
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
@@ -1031,11 +1035,11 @@
             card.style.opacity = opacity;
 
             if (dist < 150) {
-                card.classList.add('active');
+                if (!card.classList.contains('active')) card.classList.add('active');
                 card.style.opacity = 1; 
             } else {
-                card.classList.remove('active');
-                if(card.classList.contains('flipped')) card.classList.remove('flipped');
+                if (card.classList.contains('active')) card.classList.remove('active');
+                if (card.classList.contains('flipped')) card.classList.remove('flipped');
             }
         }
         requestAnimationFrame(animateCards);
@@ -1046,7 +1050,6 @@
     } else {
         initApp();
     }
-
 </script>
 </body>
 </html>
