@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V46 Rescue</title>
+    <title>BeanDance V46 Elastic</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -66,10 +66,11 @@
             
             will-change: scroll-position;
             
-            opacity: 0; /* 初始状态 */
-            transition: opacity 0.5s ease-out;
+            /* 初始隐身 */
+            opacity: 0; 
+            transition: opacity 0.6s ease-out;
         }
-        .card-scroller.visible { opacity: 1; } /* 激活状态 */
+        .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
 
         .card-scroller::before,
@@ -166,24 +167,42 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* 上传按钮 */
+        /* --- 智能上传按钮 (V46 弹性无位移版) --- */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
             background: transparent; border: none;
             display: flex; justify-content: center; align-items: center; z-index: 20;
-            cursor: pointer; transition: all 0.3s ease;
+            cursor: pointer;
             pointer-events: auto;
             opacity: 0.4;
+            
+            /* 关键优化：指定过渡属性，使用弹性曲线 */
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: center center;
         }
+        
         .upload-btn svg { 
             stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
-            transition: transform 0.2s;
+            /* SVG 内部缩放单独处理 */
+            transition: transform 0.2s ease;
         }
-        .upload-btn:active svg { transform: scale(0.9); }
-        .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(1); }
-        .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); }
+        
+        /* 点击时微缩图标，不移动位置 */
+        .upload-btn:active svg { transform: scale(0.85); }
+
+        /* 状态: 有图片时 -> 隐形 + 缩小 */
+        .card-wrapper.has-image .upload-btn { 
+            opacity: 0; 
+            transform: scale(0.8); /* 缩小到 0.8，避免位移感 */
+        }
+        
+        /* 状态: 激活显示时 -> 显现 + 弹性放大 */
+        .card-wrapper.has-image.reveal-icon .upload-btn { 
+            opacity: 1; 
+            transform: scale(1.1); /* 弹性放大一点点 */
+        }
 
         .card-back {
             transform: rotateY(180deg); z-index: 1;
@@ -263,7 +282,6 @@
         .opt-dark { color: #d7ccc8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 搜索栏样式 */
         .search-bar-wrapper {
             display: flex; align-items: center; justify-content: center; margin-top: 10px;
             opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
@@ -285,19 +303,11 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
-        
-        /* 错误提示层，默认隐藏 */
-        #error-layer {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: red; background: rgba(0,0,0,0.8); padding: 20px; z-index: 10000;
-            display: none; border: 1px solid red; font-family: monospace;
-        }
     </style>
 </head>
 <body>
 
 <div class="status-toast" id="statusToast">SAVED</div>
-<div id="error-layer"></div>
 
 <div class="app-container">
     <div class="card-scroller" id="scroller">
@@ -306,7 +316,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V46_Rescue'; // Fresh DB
+    const DB_NAME = 'BeanDance_V46_Stable'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
@@ -322,7 +332,6 @@
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
-    const errorLayer = document.getElementById('error-layer');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -330,15 +339,8 @@
         setTimeout(() => toast.style.opacity = '0', 1500);
     }
 
-    // --- DB ---
     function initDB() {
         return new Promise((resolve, reject) => {
-            // Safety check
-            if (!window.indexedDB) {
-                console.error("No IndexedDB");
-                // 就算没数据库，也要 resolve，以便显示 UI
-                return resolve(null);
-            }
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onupgradeneeded = (e) => {
                 db = e.target.result;
@@ -347,26 +349,15 @@
                 }
             };
             request.onsuccess = (e) => { db = e.target.result; resolve(db); };
-            request.onerror = (e) => { 
-                console.error("DB Error", e); 
-                // DB 错误也 resolve，防止黑屏
-                resolve(null); 
-            };
+            request.onerror = (e) => reject(e);
         });
     }
 
     function getAllCoffees() {
         return new Promise((resolve) => {
             if (!db) return resolve([]);
-            try {
-                const tx = db.transaction(STORE_NAME, 'readonly');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.getAll();
-                req.onsuccess = (e) => resolve(e.target.result);
-                req.onerror = () => resolve([]);
-            } catch(e) {
-                resolve([]);
-            }
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result);
         });
     }
 
@@ -394,11 +385,10 @@
     }
 
     function saveToDB(id, data) {
-        if (!db) return;
         try {
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
-            const safeData = { ...data }; // Shallow copy
+            const safeData = { ...data };
             
             if (id === METADATA_ID || id === SEARCH_BG_ID) {
                 store.get(id).onsuccess = (e) => {
@@ -413,7 +403,6 @@
     }
 
     async function addCoffee(roast) {
-        if (!db) { alert("DB Error"); return; }
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         const newCoffee = {
@@ -435,7 +424,6 @@
     }
 
     async function deleteCard(id) {
-        if (!db) return;
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
             allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
@@ -508,7 +496,6 @@
         });
     }
 
-    // --- UI Logic ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
@@ -542,6 +529,7 @@
                         document.querySelectorAll('.reveal-icon').forEach(el => {
                             if(el !== wrapper) el.classList.remove('reveal-icon');
                         });
+                        
                         if (revealTimer) clearTimeout(revealTimer);
                         revealTimer = setTimeout(() => wrapper.classList.remove('reveal-icon'), 2000);
                         return;
@@ -604,11 +592,6 @@
     }
 
     async function initApp() {
-        // 安全保险丝：防止死循环或永久黑屏
-        const failsafe = setTimeout(() => {
-            scroller.classList.add('visible');
-        }, 500);
-
         try {
             await initDB();
             const allData = await getAllCoffees();
@@ -617,7 +600,6 @@
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
             
             const searchData = allData.find(c => c.id === SEARCH_BG_ID);
-            
             allCoffeesCache = allData.filter(c => c.id > 0);
             
             scroller.innerHTML = '';
@@ -632,20 +614,18 @@
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     scroller.classList.add('visible');
-                    // 成功加载，清除保险丝
-                    clearTimeout(failsafe);
-                    if(!isAnimating) animateCards();
+                    animateCards();
                 });
             });
 
             setupDelegation();
+            
+            // Failsafe
+            setTimeout(() => scroller.classList.add('visible'), 500);
 
         } catch (e) {
-            console.error("App Crash", e);
-            errorLayer.style.display = 'block';
-            errorLayer.innerText = "Error: " + e.message;
-            // 即使出错也尝试显示界面
-            scroller.classList.add('visible');
+            console.error(e);
+            alert("Init Error");
         }
     }
 
@@ -660,7 +640,6 @@
                 card.style.display = match ? 'block' : 'none';
             }
         });
-        requestAnimationFrame(animateCards);
     }
 
     function renderSearchCard(data) {
@@ -758,7 +737,6 @@
     }
 
     function animateCards() {
-        isAnimating = true;
         const wrappers = scroller.children;
         const buffer = 450;
         
@@ -801,8 +779,6 @@
         }
         requestAnimationFrame(animateCards);
     }
-
-    initApp();
 </script>
 </body>
 </html>
