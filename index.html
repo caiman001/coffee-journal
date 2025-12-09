@@ -43,42 +43,57 @@
             justify-content: center; align-items: center;
         }
 
-        /* --- 搜索栏优化 (Feature 2) --- */
+        /* --- 搜索 UI 优化 (Feature 2) --- */
         .search-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; z-index: 200;
-            /* 改为顶部条状，非全屏遮挡 */
-            height: auto; min-height: 120px;
-            background: rgba(20, 20, 20, 0.6); 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            position: fixed; inset: 0; z-index: 200;
+            /* 背景透明，但作为点击拦截层存在 */
+            background: rgba(0,0,0,0.01); 
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            padding-top: 60px; /* 距离顶部的位置 */
             
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            padding-bottom: 20px;
-            
-            /* 初始隐藏在顶部上方 */
-            transform: translateY(-100%);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            pointer-events: none;
-        }
-        .search-overlay.active { 
-            transform: translateY(0); 
-            pointer-events: auto; 
+            /* 状态控制 */
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: opacity 0.3s ease;
         }
         
-        .search-input-large {
+        .search-overlay.active { 
+            opacity: 1; visibility: visible; pointer-events: auto; 
+        }
+
+        /* 搜索胶囊容器 */
+        .search-capsule {
+            width: var(--card-width);
+            height: 60px;
+            background: rgba(40, 40, 40, 0.6);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 30px; /* 圆角矩形 */
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            
+            transform: translateY(-120%); /* 初始向上隐藏 */
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* iPad 弹性动画 */
+        }
+        
+        .search-overlay.active .search-capsule {
+            transform: translateY(0);
+        }
+
+        .search-icon {
+            width: 20px; height: 20px;
+            stroke: rgba(255,255,255,0.6);
+            margin-left: 20px; margin-right: 10px;
+        }
+
+        .search-input-box {
+            flex: 1; height: 100%;
             background: transparent; border: none; outline: none;
-            border-bottom: 1px solid rgba(255,255,255,0.3);
-            color: white; font-size: 24px; font-weight: 600;
-            width: 80%; text-align: center; padding: 10px 0;
-            font-family: inherit; letter-spacing: 1px;
+            color: white; font-size: 20px; font-weight: 500;
+            padding-right: 20px;
+            font-family: inherit;
             caret-color: #D4A373;
         }
-        
-        .search-hint {
-            margin-top: 10px; color: rgba(255,255,255,0.4); font-size: 10px; letter-spacing: 2px; font-weight: 500;
-            opacity: 0; transition: opacity 0.3s 0.2s ease;
-        }
-        .search-overlay.active .search-hint { opacity: 1; }
+        .search-input-box::placeholder { color: transparent; } /* 隐藏提示文字 */
 
         /* 滚动区域 */
         .card-scroller {
@@ -350,10 +365,12 @@
 </head>
 <body>
 
-<!-- 搜索覆盖层 -->
+<!-- 搜索覆盖层 (Feature 2 Refined) -->
 <div class="search-overlay" id="searchOverlay">
-    <input type="text" class="search-input-large" id="searchInput" placeholder="Find Coffee...">
-    <div class="search-hint">SWIPE UP TO CLOSE</div>
+    <div class="search-capsule" id="searchCapsule">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" class="search-input-box" id="searchInput" placeholder="">
+    </div>
 </div>
 
 <div class="loading-screen" id="loadingText">INITIALIZING...</div>
@@ -386,6 +403,7 @@
     const loader = document.getElementById('loadingText');
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
+    const searchCapsule = document.getElementById('searchCapsule');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -663,7 +681,7 @@
         e.target.value = '';
     }
 
-    // --- 搜索功能 (Feature 2 Update) ---
+    // --- 搜索功能 (Feature 2 Refined: Click anywhere to close) ---
     function activateSearch() {
         searchOverlay.classList.add('active');
         searchInput.focus();
@@ -674,13 +692,11 @@
         searchInput.blur();
     }
 
-    // 回车后执行导航，而不是过滤
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             const query = searchInput.value.toLowerCase().trim();
             if (!query) return;
 
-            // 查找最近匹配项
             const target = allCoffeesCache.find(c => c.name && c.name.toLowerCase().includes(query));
             
             if (target) {
@@ -688,7 +704,7 @@
                 if (card) {
                     card.scrollIntoView({ behavior: 'smooth', inline: 'center' });
                     deactivateSearch();
-                    searchInput.value = ''; // 清空方便下次搜索
+                    searchInput.value = ''; 
                 }
             } else {
                 showToast('NO MATCH');
@@ -696,7 +712,7 @@
         }
     });
 
-    // --- 手势识别 (Feature 2 Update) ---
+    // --- 手势识别 ---
     let touchStartX = 0;
     let touchStartY = 0;
     
@@ -711,22 +727,17 @@
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
         
-        // 判定下滑 (Pull Down)：Y轴向下位移明显，且X轴位移较小
         const isPullDown = diffY > 60 && Math.abs(diffX) < 50;
         
-        // 判定上滑关闭 (Swipe Up to Close)：当搜索框开启时
-        if (searchOverlay.classList.contains('active') && diffY < -40) {
-            deactivateSearch();
-            return;
-        }
-
         if (isPullDown && !searchOverlay.classList.contains('active')) {
             activateSearch();
         }
     });
 
+    // New Interaction Logic: Click overlay to close, but not capsule
     searchOverlay.addEventListener('click', (e) => {
-        if (e.target === searchOverlay || e.target.classList.contains('search-hint')) {
+        // 如果点击的是背景遮罩层，则关闭
+        if (e.target === searchOverlay) {
             deactivateSearch();
         }
     });
@@ -735,45 +746,40 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- 1. Upload Icon Logic (Feature 1 Update) ---
+            // --- 1. Upload Icon Logic (Feature 1 Update: Longer Timer) ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
                 const wrapper = uploadBtn.closest('.card-wrapper');
-                // 无图：不干预
                 if (!wrapper.classList.contains('has-image')) return;
 
                 const currentCardId = wrapper.dataset.id;
                 const isCurrentlyRevealed = wrapper.classList.contains('reveal-icon');
 
-                // 清理旧定时器，防止干扰
                 if (revealTimer) {
                     clearTimeout(revealTimer);
                     revealTimer = null;
                 }
 
                 if (isCurrentlyRevealed) {
-                    // 状态：已显示 -> 动作：去换图
-                    // 优化：再次设置一个长定时器，确保从相册回来后图标还在，体验更好
-                    revealTimer = setTimeout(() => hideAllIcons(), 4000); 
-                    return; // 允许浏览器打开相册
+                    // 用户要选图了：给予超长倒计时 (6s)，确保从系统相册回来时图标不消失
+                    revealTimer = setTimeout(() => hideAllIcons(), 6000); 
+                    return; 
                 } else {
-                    // 状态：未显示 -> 动作：显示图标
                     e.preventDefault();
                     e.stopPropagation();
 
-                    hideAllIcons(); // 关掉其他的
+                    hideAllIcons(); 
                     
                     wrapper.classList.add('reveal-icon');
                     activeUploadCardId = currentCardId;
                     
-                    // 优化：设置为 3500ms，确保给用户足够反应时间
-                    revealTimer = setTimeout(() => hideAllIcons(), 3500);
+                    // 修改：延长至 5000ms，让用户有充足反应时间
+                    revealTimer = setTimeout(() => hideAllIcons(), 5000);
                     return;
                 }
             }
 
             // --- 2. Global Cleanup Logic ---
-            // 点击非交互区域，立即隐藏图标
             if (!t.closest('input')) {
                 hideAllIcons();
             }
@@ -844,7 +850,6 @@
             const wrapper = input.closest('.card-wrapper');
             if(!wrapper) return;
 
-            // 这里移除了实时搜索 handleSearch 的调用，因为改为回车触发导航
             if (input.classList.contains('app-brand-title-input')) return updateMetadata('title', input.value);
             if (input.classList.contains('app-brand-author-input')) return updateMetadata('author', input.value);
 
