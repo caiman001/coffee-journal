@@ -383,10 +383,9 @@
 
 <script>
     /* 
-       BeanDance V74 - Final Logic & Rendering Fix
-       1. Logic: Migrated from Global Timer to Per-Card WeakMap Timer.
-       2. Interaction: Strict 3-State Machine (Direct/Wake/Action).
-       3. CSS: Removed conflicting 3D transforms to fix Safari flickering.
+       BeanDance V75 - iPad Pro M1 Ultimate Fix
+       Method: Hybrid Touch/Click State Machine with Ghost-Click Protection.
+       Status: Stable for High-Refresh Touch Screens.
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -395,15 +394,18 @@
     const SEARCH_BG_ID = 0; 
     const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
-    const ICON_TIMEOUT = 3000; // 上传 icon 显示时长
+    const ICON_TIMEOUT = 3000;
     
     let db;
     let allCoffeesCache = [];
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    // [逻辑修复1] 使用 WeakMap 替代全局变量，每张卡片独立管理自己的倒计时
-    const iconTimers = new WeakMap(); 
+    // 状态管理容器
+    const iconTimers = new WeakMap();      // 卡片定时器
+    const justRevealedMap = new WeakMap(); // 标记"刚刚唤醒"状态
+    let lastBtnTouchTime = 0;              // 全局触摸时间戳，用于防抖和防误杀
+    
     let menuTimer; 
     let lastScrollLeft = -1; 
     
@@ -413,20 +415,22 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- [CSS 修复: 移除 3D Transform 冲突] ---
+    // --- [CSS 修复: 实体化点击区] ---
     const style = document.createElement('style');
     style.innerHTML = `
-        /* 1. 穿透修复: SVG 不阻挡点击 */
-        .upload-btn svg {
-            pointer-events: none;
-        }
-        /* 2. 渲染修复: 移除 translateZ，避免与 scale 动画冲突导致闪烁 */
+        /* 1. 穿透修复 */
+        .upload-btn svg { pointer-events: none; }
+        
+        /* 2. 实体化修复: 给一个微弱的背景色，强制 Safari 渲染点击响应区，解决点击穿透 */
         .upload-btn {
             z-index: 100; 
             cursor: pointer;
-            /* 保持默认 transform，不要强制 3D */
+            background-color: rgba(255, 255, 255, 0.01); /* 关键: 0.01 不透明度 */
+            /* 扩大一点点击范围 */
+            top: 15px; right: 15px; width: 60px; height: 60px;
         }
-        /* 3. 性能优化: 仅中心卡片开启昂贵的流光层 */
+
+        /* 3. 性能优化 */
         .card-wrapper { will-change: transform; }
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
@@ -441,9 +445,8 @@
     `;
     document.head.appendChild(style);
 
-    // --- [图标状态管理 Helper] ---
-    
-    // 单个卡片：隐藏上传 icon，并清理自己的 timer
+    // --- [图标状态逻辑] ---
+
     function hideIconFor(wrapper) {
         if (!wrapper) return;
         wrapper.classList.remove('reveal-icon');
@@ -454,17 +457,17 @@
         }
     }
 
-    // 单个卡片：显示上传 icon，并启动/重置 3 秒计时
     function showIconFor(wrapper) {
         if (!wrapper) return;
-
-        // 互斥逻辑：只允许一张卡片的 icon 处于“唤醒”状态
+        
+        // 互斥：隐藏其他卡片的图标
         document.querySelectorAll('.card-wrapper.reveal-icon').forEach(w => {
             if (w !== wrapper) hideIconFor(w);
         });
 
         wrapper.classList.add('reveal-icon');
 
+        // 重置定时器
         const oldTimer = iconTimers.get(wrapper);
         if (oldTimer) clearTimeout(oldTimer);
 
@@ -476,8 +479,10 @@
         iconTimers.set(wrapper, timerId);
     }
 
-    // 全部卡片：统一收起
-    function hideAllIcons() {
+    // 全局清理 (带保护机制)
+    function safeHideAllIcons() {
+        // [核心修复] 如果 500ms 内摸过按钮，说明现在的"点击空白"可能是误判，拒绝执行清理
+        if (Date.now() - lastBtnTouchTime < 500) return;
         document.querySelectorAll('.card-wrapper.reveal-icon').forEach(hideIconFor);
     }
 
@@ -641,7 +646,7 @@
             showToast('ERROR');
         });
         
-        // [逻辑修复3] 不要在这里 hideAllIcons，让 showIconFor 的 3s 计时自然结束
+        // 注意：不在这里调用 hideIcon，让 3s 倒计时自然结束
     }
 
     function updateImageDOM(wrapper, blob) {
@@ -742,6 +747,21 @@
     scroller.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
+        
+        // [核心修复] 在 Touch 阶段就拦截按钮意图，这比 Click 更早更准
+        const btn = e.target.closest('.upload-btn');
+        if (btn) {
+            lastBtnTouchTime = Date.now(); // 记录时间戳，用于"熔断保护"
+            const wrapper = btn.closest('.card-wrapper');
+            const isRevealed = wrapper.classList.contains('reveal-icon');
+            const hasImage = wrapper.classList.contains('has-image');
+            
+            // 如果是有图且未唤醒，在这里预处理 (可选，主要为了更新时间戳)
+            if (hasImage && !isRevealed) {
+                // 标记意图，但不立即 show，让 click 处理，避免双重触发
+                justRevealedMap.set(wrapper, true); 
+            }
+        }
     }, { passive: true });
     
     scroller.addEventListener('touchend', e => {
@@ -753,52 +773,57 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- [逻辑修复2] 严格的事件路由 ---
+    // --- 事件代理 (Hybrid Logic) ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
 
-            // 0. 防御：如果是 JS 触发的 Input 本身，直接退出
+            // 0. 防御递归
             if (t.tagName === 'INPUT' && t.type === 'file') return;
 
-            // 1. 【按钮逻辑区】 - 核心交互重构
+            // 1. 【按钮逻辑】
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                // 非常关键：彻底把这个 click 事件“抓住”，避免 Safari 额外派发奇怪的冒泡
                 e.stopPropagation();
-                e.preventDefault();
+                e.preventDefault(); // 暂时阻止 Input 自动开启，改为下面手动 trigger
 
-                const wrapper   = uploadBtn.closest('.card-wrapper');
-                const hasImage  = wrapper.classList.contains('has-image');
+                const wrapper = uploadBtn.closest('.card-wrapper');
+                const hasImage = wrapper.classList.contains('has-image');
                 const isRevealed = wrapper.classList.contains('reveal-icon');
                 const fileInput = uploadBtn.querySelector('input');
 
-                // --- Case A：无图 -> icon 常在，点击 = 直接选图 ---
+                // Case A: 无图 -> 选图
                 if (!hasImage) {
                     if (fileInput) fileInput.click();
                     return;
                 }
 
-                // --- Case B：有图 ---
+                // Case B: 有图
                 if (!isRevealed) {
-                    // B1：第一次点击，仅唤醒 icon，3 秒自动隐藏
+                    // B1: 唤醒
                     showIconFor(wrapper);
+                    // 标记状态，防止 Touchstart 里的逻辑打架（虽然 Touchstart 是 passive 的）
+                    return;
+                } else {
+                    // B2: 换图
+                    // 这里有一个关键点：如果是 touchstart 刚刚标记了 justRevealed，
+                    // 说明这次点击其实是唤醒动作的"余波"，不应该触发选图
+                    if (justRevealedMap.get(wrapper)) {
+                        justRevealedMap.delete(wrapper);
+                        // 这是一个"刚唤醒"的点击，showIconFor 已经运行了，这里什么都不做，只是消耗掉这次 click
+                        return;
+                    }
+                    
+                    // 正常的第二次点击 -> 换图
+                    showIconFor(wrapper); // 刷新计时器
+                    if (fileInput) fileInput.click();
                     return;
                 }
-
-                // B2：已唤醒状态下再次点击 -> 换图
-                if (fileInput) {
-                    // 再点一次，认为是“确认要换图”，顺便重置 3s，让用户从文件选择返回后 icon 还能存在一小会
-                    showIconFor(wrapper);
-                    fileInput.click();
-                }
-                return;
             }
 
-            // 2. 【功能逻辑区】
+            // 2. 【功能逻辑】
             const addCard = t.closest('.card-add');
             if (addCard) {
-                // 处理导入导出等
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
                 if (t.classList.contains('btn-import')) { document.getElementById('json-import-input').click(); return; }
                 if (t.classList.contains('add-menu-btn')) {
@@ -817,13 +842,14 @@
                 return;
             }
 
-            // 3. 【清理逻辑区】
-            // 如果点击的不是功能区，也不是 Input，统一收起
+            // 3. 【清理逻辑】
+            // 如果不是 Input，也不是上面处理过的按钮，尝试清理
             if (!t.closest('input')) {
-                hideAllIcons();
+                // [熔断] 调用安全的清理函数
+                safeHideAllIcons();
             }
 
-            // 4. 【卡片翻转/操作逻辑】
+            // 4. 【卡片翻转】
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
             if (t.closest('input')) return; 
