@@ -43,37 +43,40 @@
             justify-content: center; align-items: center;
         }
 
-        /* 搜索覆盖层 */
+        /* --- 搜索栏优化 (Feature 2) --- */
         .search-overlay {
-            position: fixed; inset: 0; z-index: 200;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            display: flex; flex-direction: column; align-items: center; padding-top: 140px;
-            opacity: 0; visibility: hidden;
-            transform: scale(1.1);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 200;
+            /* 改为顶部条状，非全屏遮挡 */
+            height: auto; min-height: 120px;
+            background: rgba(20, 20, 20, 0.6); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            padding-bottom: 20px;
+            
+            /* 初始隐藏在顶部上方 */
+            transform: translateY(-100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             pointer-events: none;
         }
         .search-overlay.active { 
-            opacity: 1; visibility: visible;
-            transform: scale(1); pointer-events: auto; 
+            transform: translateY(0); 
+            pointer-events: auto; 
         }
         
         .search-input-large {
             background: transparent; border: none; outline: none;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            color: white; font-size: 32px; font-weight: 700;
-            width: 80%; text-align: center; padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            color: white; font-size: 24px; font-weight: 600;
+            width: 80%; text-align: center; padding: 10px 0;
             font-family: inherit; letter-spacing: 1px;
             caret-color: #D4A373;
-            transform: translateY(20px); opacity: 0;
-            transition: all 0.4s 0.1s ease-out;
         }
-        .search-overlay.active .search-input-large { transform: translateY(0); opacity: 1; }
         
         .search-hint {
-            margin-top: 24px; color: rgba(255,255,255,0.4); font-size: 12px; letter-spacing: 2px; font-weight: 500;
-            opacity: 0; transition: opacity 0.4s 0.2s ease;
+            margin-top: 10px; color: rgba(255,255,255,0.4); font-size: 10px; letter-spacing: 2px; font-weight: 500;
+            opacity: 0; transition: opacity 0.3s 0.2s ease;
         }
         .search-overlay.active .search-hint { opacity: 1; }
 
@@ -349,8 +352,8 @@
 
 <!-- 搜索覆盖层 -->
 <div class="search-overlay" id="searchOverlay">
-    <input type="text" class="search-input-large" id="searchInput" placeholder="SEARCH...">
-    <div class="search-hint">TAP TO CLOSE</div>
+    <input type="text" class="search-input-large" id="searchInput" placeholder="Find Coffee...">
+    <div class="search-hint">SWIPE UP TO CLOSE</div>
 </div>
 
 <div class="loading-screen" id="loadingText">INITIALIZING...</div>
@@ -660,7 +663,7 @@
         e.target.value = '';
     }
 
-    // --- 搜索功能 ---
+    // --- 搜索功能 (Feature 2 Update) ---
     function activateSearch() {
         searchOverlay.classList.add('active');
         searchInput.focus();
@@ -671,20 +674,29 @@
         searchInput.blur();
     }
 
-    function handleSearch(query) {
-        const lower = query.toLowerCase().trim();
-        document.querySelectorAll('.card-wrapper[data-id]').forEach(card => {
-            const id = parseInt(card.dataset.id);
-            if(id === SEARCH_BG_ID) return;
-            const data = allCoffeesCache.find(c => c.id === id);
-            if(data) {
-                const match = !lower || (data.name && data.name.toLowerCase().includes(lower));
-                card.style.display = match ? 'block' : 'none';
-            }
-        });
-    }
+    // 回车后执行导航，而不是过滤
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const query = searchInput.value.toLowerCase().trim();
+            if (!query) return;
 
-    // --- 手势 ---
+            // 查找最近匹配项
+            const target = allCoffeesCache.find(c => c.name && c.name.toLowerCase().includes(query));
+            
+            if (target) {
+                const card = document.querySelector(`.card-wrapper[data-id="${target.id}"]`);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                    deactivateSearch();
+                    searchInput.value = ''; // 清空方便下次搜索
+                }
+            } else {
+                showToast('NO MATCH');
+            }
+        }
+    });
+
+    // --- 手势识别 (Feature 2 Update) ---
     let touchStartX = 0;
     let touchStartY = 0;
     
@@ -699,10 +711,16 @@
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
         
-        const isNearStart = scroller.scrollLeft < (window.innerWidth * 0.3);
-        const isHorizontalSwipe = Math.abs(diffX) > Math.abs(diffY) * 1.5; 
+        // 判定下滑 (Pull Down)：Y轴向下位移明显，且X轴位移较小
+        const isPullDown = diffY > 60 && Math.abs(diffX) < 50;
         
-        if (isNearStart && diffX > 40 && isHorizontalSwipe) {
+        // 判定上滑关闭 (Swipe Up to Close)：当搜索框开启时
+        if (searchOverlay.classList.contains('active') && diffY < -40) {
+            deactivateSearch();
+            return;
+        }
+
+        if (isPullDown && !searchOverlay.classList.contains('active')) {
             activateSearch();
         }
     });
@@ -712,55 +730,50 @@
             deactivateSearch();
         }
     });
-    
-    searchInput.addEventListener('input', (e) => {
-        handleSearch(e.target.value);
-    });
 
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- 1. Upload Icon Logic (Priority One) ---
+            // --- 1. Upload Icon Logic (Feature 1 Update) ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                // 如果没图：不干预，直接允许浏览器默认行为（打开相册）
                 const wrapper = uploadBtn.closest('.card-wrapper');
+                // 无图：不干预
                 if (!wrapper.classList.contains('has-image')) return;
 
                 const currentCardId = wrapper.dataset.id;
                 const isCurrentlyRevealed = wrapper.classList.contains('reveal-icon');
 
-                // 只要产生了交互，先清除可能存在的旧定时器，防止误伤
+                // 清理旧定时器，防止干扰
                 if (revealTimer) {
                     clearTimeout(revealTimer);
                     revealTimer = null;
                 }
 
                 if (isCurrentlyRevealed) {
-                    // 状态：已显示 -> 意图：换图
-                    // 动作：重置倒计时续命，允许浏览器默认行为（return）
-                    revealTimer = setTimeout(() => hideAllIcons(), 3000);
-                    return; 
+                    // 状态：已显示 -> 动作：去换图
+                    // 优化：再次设置一个长定时器，确保从相册回来后图标还在，体验更好
+                    revealTimer = setTimeout(() => hideAllIcons(), 4000); 
+                    return; // 允许浏览器打开相册
                 } else {
-                    // 状态：未显示 -> 意图：唤醒图标
-                    // 动作：阻止弹窗，清除其他图标，显示当前，开始倒计时
+                    // 状态：未显示 -> 动作：显示图标
                     e.preventDefault();
-                    e.stopPropagation(); // 关键：阻止事件冒泡防止触发下方的通用清除逻辑
+                    e.stopPropagation();
 
-                    hideAllIcons(); // 确保唯一性
+                    hideAllIcons(); // 关掉其他的
                     
                     wrapper.classList.add('reveal-icon');
                     activeUploadCardId = currentCardId;
                     
-                    revealTimer = setTimeout(() => hideAllIcons(), 3000);
+                    // 优化：设置为 3500ms，确保给用户足够反应时间
+                    revealTimer = setTimeout(() => hideAllIcons(), 3500);
                     return;
                 }
             }
 
-            // --- 2. Global Cleanup Logic (Priority Two) ---
-            // 只要点击的不是 input，也不是 upload-btn，就视为“取消操作”，立即隐藏图标
-            // 这解决了“点击其他页面闪现”的问题
+            // --- 2. Global Cleanup Logic ---
+            // 点击非交互区域，立即隐藏图标
             if (!t.closest('input')) {
                 hideAllIcons();
             }
@@ -831,7 +844,7 @@
             const wrapper = input.closest('.card-wrapper');
             if(!wrapper) return;
 
-            if (input.classList.contains('search-input-inline')) { handleSearch(input.value); return; }
+            // 这里移除了实时搜索 handleSearch 的调用，因为改为回车触发导航
             if (input.classList.contains('app-brand-title-input')) return updateMetadata('title', input.value);
             if (input.classList.contains('app-brand-author-input')) return updateMetadata('author', input.value);
 
