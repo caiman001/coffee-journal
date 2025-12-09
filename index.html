@@ -375,7 +375,6 @@
     
     let debounceMap = new Map();
     let revealTimer = null;
-    // 使用 weak reference 或 ID 记录当前激活的卡片，更健壮
     let activeUploadCardId = null; 
     let menuTimer; 
     
@@ -583,7 +582,7 @@
         }
     }
 
-    // 统一的状态清理函数：彻底重置所有上传图标状态
+    // 统一的状态清理函数
     function hideAllIcons() {
         if (revealTimer) {
             clearTimeout(revealTimer);
@@ -685,7 +684,7 @@
         });
     }
 
-    // --- 核心修复 1：更宽松、更智能的滑动手势 ---
+    // --- 手势 ---
     let touchStartX = 0;
     let touchStartY = 0;
     
@@ -700,10 +699,8 @@
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
         
-        // 修复：放宽 scrollLeft 限制到屏幕宽度的 30% 以内，防止因惯性回弹导致的判定失败
-        // 修复：触发距离 > 40px 即可，无需 60px
         const isNearStart = scroller.scrollLeft < (window.innerWidth * 0.3);
-        const isHorizontalSwipe = Math.abs(diffX) > Math.abs(diffY) * 1.5; // X轴位移显著大于Y轴
+        const isHorizontalSwipe = Math.abs(diffX) > Math.abs(diffY) * 1.5; 
         
         if (isNearStart && diffX > 40 && isHorizontalSwipe) {
             activateSearch();
@@ -724,7 +721,51 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- Add Card Logic ---
+            // --- 1. Upload Icon Logic (Priority One) ---
+            const uploadBtn = t.closest('.upload-btn');
+            if (uploadBtn) {
+                // 如果没图：不干预，直接允许浏览器默认行为（打开相册）
+                const wrapper = uploadBtn.closest('.card-wrapper');
+                if (!wrapper.classList.contains('has-image')) return;
+
+                const currentCardId = wrapper.dataset.id;
+                const isCurrentlyRevealed = wrapper.classList.contains('reveal-icon');
+
+                // 只要产生了交互，先清除可能存在的旧定时器，防止误伤
+                if (revealTimer) {
+                    clearTimeout(revealTimer);
+                    revealTimer = null;
+                }
+
+                if (isCurrentlyRevealed) {
+                    // 状态：已显示 -> 意图：换图
+                    // 动作：重置倒计时续命，允许浏览器默认行为（return）
+                    revealTimer = setTimeout(() => hideAllIcons(), 3000);
+                    return; 
+                } else {
+                    // 状态：未显示 -> 意图：唤醒图标
+                    // 动作：阻止弹窗，清除其他图标，显示当前，开始倒计时
+                    e.preventDefault();
+                    e.stopPropagation(); // 关键：阻止事件冒泡防止触发下方的通用清除逻辑
+
+                    hideAllIcons(); // 确保唯一性
+                    
+                    wrapper.classList.add('reveal-icon');
+                    activeUploadCardId = currentCardId;
+                    
+                    revealTimer = setTimeout(() => hideAllIcons(), 3000);
+                    return;
+                }
+            }
+
+            // --- 2. Global Cleanup Logic (Priority Two) ---
+            // 只要点击的不是 input，也不是 upload-btn，就视为“取消操作”，立即隐藏图标
+            // 这解决了“点击其他页面闪现”的问题
+            if (!t.closest('input')) {
+                hideAllIcons();
+            }
+
+            // --- 3. Other Card Logic ---
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -749,42 +790,6 @@
 
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
-
-            // --- 核心修复 2：绝对稳固的 Upload Icon 逻辑 ---
-            const uploadBtn = t.closest('.upload-btn');
-            if (uploadBtn) {
-                // 1. 无图情况：不做任何干预，直接 return。
-                // 浏览器会执行 label 的默认行为 -> 自动打开文件选择器
-                if (!wrapper.classList.contains('has-image')) return;
-
-                // 2. 有图情况：需要分状态处理
-                const currentCardId = wrapper.dataset.id;
-                const isRevealed = activeUploadCardId === currentCardId && wrapper.classList.contains('reveal-icon');
-
-                if (isRevealed) {
-                    // [状态：图标已显示] -> 用户想要换图
-                    // 逻辑：重置 3s 倒计时，允许浏览器默认行为发生
-                    
-                    if (revealTimer) clearTimeout(revealTimer);
-                    revealTimer = setTimeout(() => hideAllIcons(), 3000); // 续命 3秒
-                    
-                    // 【重要】这里直接 return，不要调用 preventDefault()
-                    // 让 <label> 标签的自然点击事件穿透，浏览器会自动触发 input 弹出相册
-                    return; 
-                } 
-                
-                // [状态：图标隐藏] -> 用户想要唤醒图标
-                // 逻辑：阻止默认行为（不弹相册），显示图标，设置 3s 倒计时
-                e.preventDefault(); 
-                e.stopPropagation();
-
-                hideAllIcons(); // 清理其他卡片状态
-                wrapper.classList.add('reveal-icon');
-                activeUploadCardId = currentCardId;
-                
-                revealTimer = setTimeout(() => hideAllIcons(), 3000);
-                return;
-            }
 
             if (t.closest('input')) return;
 
