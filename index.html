@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V58 Golden Master</title>
+    <title>BeanDance V59 Final Polish</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -52,14 +52,10 @@
             scrollbar-width: none;
             position: absolute;
             top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
-            transform: translateY(-50%);
+            transform: translateY(-50%) translateZ(0);
             align-items: center;
             padding: 0; 
-            
-            /* 初始状态：不可见 */
             opacity: 0; 
-            /* 硬件加速，防止动画抖动 */
-            transform: translateY(-50%) translateZ(0);
             transition: opacity 0.6s ease-out;
             will-change: opacity, scroll-position;
         }
@@ -80,7 +76,6 @@
             perspective: 2000px;
             z-index: 1;
             will-change: transform, opacity;
-            /* 默认稍微缩小，由 JS 接管动画 */
             transform: scale(0.88);
             opacity: 0.4;
         }
@@ -111,12 +106,7 @@
         }
         @keyframes spin { to { --angle: 360deg; } }
 
-        .card-front { 
-            overflow: hidden; 
-            z-index: 2; 
-            /* 强制开启 GPU 加速，解决 Safari 裁剪 Bug */
-            transform: rotateY(0deg) translateZ(0); 
-        }
+        .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg) translateZ(0); }
         
         .bg-placeholder {
             position: absolute; inset: 0;
@@ -124,11 +114,9 @@
             z-index: 0;
         }
 
-        /* 物理防白边：放大至 102% */
         .bg-image { 
             position: absolute; 
-            top: -1%; left: -1%;
-            width: 102%; height: 102%; 
+            top: -1%; left: -1%; width: 102%; height: 102%; 
             object-fit: cover; 
             transition: opacity 0.5s ease; 
             background-color: #000; 
@@ -259,13 +247,20 @@
             border: 1px dashed rgba(255,255,255,0.2); pointer-events: none;
         }
         .card-add:active { background: rgba(255,255,255,0.05); }
-        .add-icon { font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; pointer-events: none; }
+        
+        /* Add Card 状态管理 */
+        .add-icon { 
+            font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .card-add.active .add-icon { opacity: 0; }
 
         .add-menu {
             display: none; flex-direction: column; gap: 12px; width: 60%;
-            animation: fadeIn 0.3s ease; z-index: 20;
+            z-index: 20; opacity: 0; transition: opacity 0.3s;
         }
-        .add-menu.show { display: flex; }
+        .card-add.active .add-menu { display: flex; opacity: 1; animation: fadeIn 0.3s ease; }
+
         .add-menu-btn {
             background: rgba(255,255,255,0.08); padding: 16px; border-radius: 16px;
             text-align: center; color: white; font-weight: 600; font-size: 14px;
@@ -277,8 +272,10 @@
         .add-card-footer {
             position: absolute; bottom: 30px; left: 0; width: 100%;
             display: flex; justify-content: center; gap: 20px;
-            z-index: 30;
+            z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
+        .card-add.active .add-card-footer { opacity: 1; pointer-events: auto; }
+
         .btn-io {
             font-size: 11px; font-weight: 700; letter-spacing: 1px;
             color: rgba(255,255,255,0.3); padding: 8px 12px;
@@ -347,6 +344,7 @@
     
     let debounceMap = new Map();
     let revealTimer; 
+    let menuTimer; // 专门管理新建卡片菜单的定时器
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
@@ -359,8 +357,6 @@
     }
 
     function initDB() {
-        // Race condition: 如果数据库在1秒内没反应（被屏蔽或系统卡顿），则 Resolve 为 null，
-        // 保证 App 能继续启动（离线/无持久化模式），绝不卡死。
         const dbPromise = new Promise((resolve) => {
             if (!window.indexedDB) return resolve(null);
             try {
@@ -374,12 +370,8 @@
                 request.onsuccess = (e) => { db = e.target.result; resolve(db); };
                 request.onerror = () => resolve(null); 
                 request.onblocked = () => resolve(null);
-            } catch (e) {
-                console.error(e);
-                resolve(null);
-            }
+            } catch (e) { resolve(null); }
         });
-
         const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1000));
         return Promise.race([dbPromise, timeoutPromise]);
     }
@@ -389,10 +381,7 @@
             if (!db) return resolve([]);
             try {
                 const tx = db.transaction(STORE_NAME, 'readonly');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.getAll();
-                req.onsuccess = (e) => resolve(e.target.result);
-                req.onerror = () => resolve([]);
+                tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result);
             } catch(e) { resolve([]); }
         });
     }
@@ -451,7 +440,6 @@
 
     async function addCoffee(roast, overrideData = null) {
         if (!db) { 
-            // 如果 DB 不可用，仍然允许添加卡片到内存，保证 UI 有反馈
             const tempId = Date.now();
             let newCoffee = overrideData || {
                 id: tempId, name: 'New Coffee', 
@@ -487,8 +475,8 @@
     function resetAddMenu() {
         const addCard = document.querySelector('.card-add');
         if(addCard) {
-            addCard.querySelector('.add-menu').classList.remove('show');
-            addCard.querySelector('.add-icon').style.display = 'block';
+            addCard.classList.remove('active');
+            if (menuTimer) { clearTimeout(menuTimer); menuTimer = null; }
         }
     }
 
@@ -549,15 +537,17 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
+        
+        // --- 上传成功后，清理状态 ---
         if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
-
+        
         const img = wrapper.querySelector('.bg-image');
         if(img) {
             if(img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
             img.src = URL.createObjectURL(blob);
             img.style.opacity = 1;
             wrapper.classList.add('has-image');
-            wrapper.classList.remove('reveal-icon');
+            wrapper.classList.remove('reveal-icon'); // 关闭图标
         }
     }
 
@@ -601,6 +591,7 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showToast('EXPORTED');
+        resetAddMenu(); // 导出后重置菜单
     }
 
     function handleImport(e) {
@@ -622,6 +613,7 @@
             } catch(err) {
                 alert("Import Failed");
             }
+            resetAddMenu(); // 导入后重置菜单
         };
         reader.readAsText(file);
         e.target.value = '';
@@ -630,43 +622,59 @@
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
-            const addCard = t.closest('.card-add');
             
+            // --- 2. Add Card 逻辑重构 ---
+            const addCard = t.closest('.card-add');
             if (addCard) {
-                const menu = addCard.querySelector('.add-menu');
-                const icon = addCard.querySelector('.add-icon');
-                
+                // 如果点击了具体功能按钮，执行功能
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
                 if (t.classList.contains('btn-import')) { document.getElementById('json-import-input').click(); return; }
-                if (t.closest('.add-card-footer')) return;
-
                 if (t.classList.contains('add-menu-btn')) {
                     let roast = 'medium';
                     if (t.classList.contains('opt-light')) roast = 'light';
                     else if (t.classList.contains('opt-dark')) roast = 'dark';
                     addCoffee(roast);
-                } else {
-                    menu.classList.toggle('show');
-                    icon.style.display = menu.classList.contains('show') ? 'none' : 'block';
+                    return;
                 }
+
+                // 如果点击空白处：唤醒菜单，2秒倒计时
+                if (menuTimer) clearTimeout(menuTimer);
+                addCard.classList.add('active'); // 显示菜单和IO按钮
+                
+                menuTimer = setTimeout(() => {
+                    addCard.classList.remove('active'); // 隐藏菜单
+                    menuTimer = null;
+                }, 2000);
                 return;
             }
 
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // --- iPad 点击修复 ---
+            // --- 1. Upload Icon 逻辑重构 (修复消失过快/闪烁) ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
                 if (wrapper.classList.contains('has-image')) {
+                    // 场景A：图标已显示 -> 用户点击传图 -> 保持常亮（清除倒计时）
                     if (wrapper.classList.contains('reveal-icon')) {
-                        if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
-                        return; // 放行，打开文件
+                        if (revealTimer) {
+                            clearTimeout(revealTimer);
+                            revealTimer = null;
+                        }
+                        return; // 放行 input
                     }
-                    e.preventDefault(); e.stopPropagation();
+
+                    // 场景B：图标未显示 -> 用户点击显示 -> 倒计时
+                    e.preventDefault(); 
+                    e.stopPropagation();
+
+                    // 清理所有旧状态，防止闪烁
                     if (revealTimer) clearTimeout(revealTimer);
                     document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
+
+                    // 激活当前
                     wrapper.classList.add('reveal-icon');
+                    
                     revealTimer = setTimeout(() => {
                         wrapper.classList.remove('reveal-icon');
                         revealTimer = null;
@@ -741,8 +749,7 @@
 
     async function initApp() {
         try {
-            await initDB(); // 现在保证 1s 内必返回
-            
+            await initDB(); 
             const allData = await getAllCoffees();
             const meta = allData.find(c => c.id === METADATA_ID);
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
@@ -764,7 +771,6 @@
         } catch (e) {
             console.error("Init Error", e);
         } finally {
-            // 无论如何，移除 Loading，显示界面
             loader.style.opacity = '0';
             setTimeout(() => { loader.style.display = 'none'; }, 300);
             scroller.classList.add('visible');
@@ -890,6 +896,7 @@
         const scrollLeft = scroller.scrollLeft;
         const viewportWidth = window.innerWidth;
         const center = viewportWidth / 2;
+        
         const itemWidth = 384; 
         const halfCard = 180; 
         const startOffset = (viewportWidth - 360) / 2; 
@@ -932,7 +939,6 @@
         requestAnimationFrame(animateCards);
     }
 
-    // 终极修复：自动检测 readyState，防止黑屏
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initApp);
     } else {
