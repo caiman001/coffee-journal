@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V59 Final Polish</title>
+    <title>BeanDance V61 Custom Layout</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -108,12 +108,6 @@
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg) translateZ(0); }
         
-        .bg-placeholder {
-            position: absolute; inset: 0;
-            background: linear-gradient(180deg, #1e1e1e 0%, #000 100%);
-            z-index: 0;
-        }
-
         .bg-image { 
             position: absolute; 
             top: -1%; left: -1%; width: 102%; height: 102%; 
@@ -133,8 +127,10 @@
             transform-origin: bottom center;
         }
 
+        /* --- 1. 搜索页排版：恢复沉底布局 --- */
+        /* 通用卡片内容布局 (搜索页和咖啡页共用) */
         .card-content {
-            position: absolute; bottom: 0; left: 0; width: 100%;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; 
             padding-bottom: 50px; align-items: center; text-align: center;
@@ -145,7 +141,7 @@
             background: transparent; border: none; outline: none;
             font-family: inherit; width: 100%; text-align: center; padding: 0;
             font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px;
-            margin: 0 0 2px 0; 
+            margin: 0; 
             background: linear-gradient(135deg, #fff 0%, #aaaaaa 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 4px 20px rgba(0,0,0,0.5); caret-color: #fff;
@@ -156,7 +152,7 @@
             font-family: inherit; width: 100%; text-align: center; padding: 0;
             font-size: 10px; font-weight: 600; letter-spacing: 6px; 
             text-transform: uppercase; color: rgba(255,255,255,0.5);
-            margin: 4px 0 30px 0; 
+            margin: 0; 
             caret-color: #fff;
         }
 
@@ -248,18 +244,21 @@
         }
         .card-add:active { background: rgba(255,255,255,0.05); }
         
-        /* Add Card 状态管理 */
         .add-icon { 
             font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; pointer-events: none;
             transition: opacity 0.3s;
         }
-        .card-add.active .add-icon { opacity: 0; }
+        .card-add.active .add-icon { opacity: 0; display: none; }
 
-        .add-menu {
-            display: none; flex-direction: column; gap: 12px; width: 60%;
-            z-index: 20; opacity: 0; transition: opacity 0.3s;
+        /* --- 2. 新增卡片页布局分离 --- */
+        
+        /* 烘焙度选项：绝对居中 */
+        .add-roast-group {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; flex-direction: column; gap: 12px; width: 60%;
+            z-index: 20; opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
-        .card-add.active .add-menu { display: flex; opacity: 1; animation: fadeIn 0.3s ease; }
+        .card-add.active .add-roast-group { opacity: 1; pointer-events: auto; animation: fadeIn 0.3s ease; }
 
         .add-menu-btn {
             background: rgba(255,255,255,0.08); padding: 16px; border-radius: 16px;
@@ -269,12 +268,13 @@
         }
         .add-menu-btn:active { background: rgba(255,255,255,0.15); }
         
-        .add-card-footer {
+        /* 导入导出：沉底 */
+        .add-io-group {
             position: absolute; bottom: 30px; left: 0; width: 100%;
             display: flex; justify-content: center; gap: 20px;
             z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
-        .card-add.active .add-card-footer { opacity: 1; pointer-events: auto; }
+        .card-add.active .add-io-group { opacity: 1; pointer-events: auto; }
 
         .btn-io {
             font-size: 11px; font-weight: 700; letter-spacing: 1px;
@@ -343,8 +343,9 @@
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    let revealTimer; 
-    let menuTimer; // 专门管理新建卡片菜单的定时器
+    let revealTimer = null;
+    let revealWrapper = null;
+    let menuTimer; 
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
@@ -538,8 +539,13 @@
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
         
-        // --- 上传成功后，清理状态 ---
-        if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+        if (revealTimer) {
+            clearTimeout(revealTimer);
+            revealTimer = null;
+        }
+        if (revealWrapper === wrapper) {
+            revealWrapper = null;
+        }
         
         const img = wrapper.querySelector('.bg-image');
         if(img) {
@@ -547,7 +553,7 @@
             img.src = URL.createObjectURL(blob);
             img.style.opacity = 1;
             wrapper.classList.add('has-image');
-            wrapper.classList.remove('reveal-icon'); // 关闭图标
+            wrapper.classList.remove('reveal-icon'); 
         }
     }
 
@@ -591,7 +597,7 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showToast('EXPORTED');
-        resetAddMenu(); // 导出后重置菜单
+        resetAddMenu();
     }
 
     function handleImport(e) {
@@ -613,7 +619,7 @@
             } catch(err) {
                 alert("Import Failed");
             }
-            resetAddMenu(); // 导入后重置菜单
+            resetAddMenu();
         };
         reader.readAsText(file);
         e.target.value = '';
@@ -623,10 +629,8 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- 2. Add Card 逻辑重构 ---
             const addCard = t.closest('.card-add');
             if (addCard) {
-                // 如果点击了具体功能按钮，执行功能
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
                 if (t.classList.contains('btn-import')) { document.getElementById('json-import-input').click(); return; }
                 if (t.classList.contains('add-menu-btn')) {
@@ -637,12 +641,11 @@
                     return;
                 }
 
-                // 如果点击空白处：唤醒菜单，2秒倒计时
                 if (menuTimer) clearTimeout(menuTimer);
-                addCard.classList.add('active'); // 显示菜单和IO按钮
+                addCard.classList.add('active'); 
                 
                 menuTimer = setTimeout(() => {
-                    addCard.classList.remove('active'); // 隐藏菜单
+                    addCard.classList.remove('active'); 
                     menuTimer = null;
                 }, 2000);
                 return;
@@ -651,36 +654,53 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // --- 1. Upload Icon 逻辑重构 (修复消失过快/闪烁) ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
+                const fileInput = uploadBtn.querySelector('input[type="file"]');
+                if (!fileInput) return;
+
                 if (wrapper.classList.contains('has-image')) {
-                    // 场景A：图标已显示 -> 用户点击传图 -> 保持常亮（清除倒计时）
-                    if (wrapper.classList.contains('reveal-icon')) {
+                    e.preventDefault(); 
+                    e.stopPropagation();
+
+                    if (revealWrapper === wrapper && wrapper.classList.contains('reveal-icon')) {
                         if (revealTimer) {
                             clearTimeout(revealTimer);
                             revealTimer = null;
                         }
-                        return; // 放行 input
+                        revealTimer = setTimeout(() => {
+                            if (revealWrapper === wrapper) {
+                                wrapper.classList.remove('reveal-icon');
+                                revealWrapper = null;
+                                revealTimer = null;
+                            }
+                        }, 2000);
+                        
+                        fileInput.click(); 
+                        return;
                     }
 
-                    // 场景B：图标未显示 -> 用户点击显示 -> 倒计时
-                    e.preventDefault(); 
-                    e.stopPropagation();
+                    if (revealWrapper && revealWrapper !== wrapper) {
+                        revealWrapper.classList.remove('reveal-icon');
+                    }
+                    if (revealTimer) {
+                        clearTimeout(revealTimer);
+                        revealTimer = null;
+                    }
 
-                    // 清理所有旧状态，防止闪烁
-                    if (revealTimer) clearTimeout(revealTimer);
-                    document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
-
-                    // 激活当前
                     wrapper.classList.add('reveal-icon');
+                    revealWrapper = wrapper;
                     
                     revealTimer = setTimeout(() => {
-                        wrapper.classList.remove('reveal-icon');
-                        revealTimer = null;
+                        if (revealWrapper === wrapper) {
+                            wrapper.classList.remove('reveal-icon');
+                            revealWrapper = null;
+                            revealTimer = null;
+                        }
                     }, 2000);
+                    return; 
                 }
-                return; 
+                return;
             }
 
             if (t.closest('input')) return;
@@ -874,12 +894,12 @@
                 <div class="card-front">
                     <div class="card-add">
                         <div class="add-icon">+</div>
-                        <div class="add-menu">
+                        <div class="add-roast-group">
                             <div class="add-menu-btn opt-light" data-roast="light">Light</div>
                             <div class="add-menu-btn opt-medium" data-roast="medium">Medium</div>
                             <div class="add-menu-btn opt-dark" data-roast="dark">Dark</div>
                         </div>
-                        <div class="add-card-footer">
+                        <div class="add-io-group">
                             <span class="btn-io btn-import">IMPORT</span>
                             <span class="btn-io btn-export">EXPORT</span>
                             <input type="file" id="json-import-input" accept=".json" hidden>
@@ -901,11 +921,15 @@
         const halfCard = 180; 
         const startOffset = (viewportWidth - 360) / 2; 
 
+        let visibleIndex = 0;
+
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
             if (card.style.display === 'none') continue;
             
-            const cardCenterX = startOffset + i * itemWidth - scrollLeft + halfCard;
+            const cardCenterX = startOffset + visibleIndex * itemWidth - scrollLeft + halfCard;
+            visibleIndex++; 
+
             const dist = Math.abs(center - cardCenterX);
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
