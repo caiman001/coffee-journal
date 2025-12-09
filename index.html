@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V64 Final</title>
+    <title>BeanDance V66 Logic Perfected</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -128,7 +128,7 @@
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
             border-radius: 40px; box-sizing: border-box;
             box-shadow: var(--glass-shadow);
-            /* 深色微渐变背景 */
+            /* 深色微渐变 */
             background: linear-gradient(160deg, #1a1a1a 0%, #050505 100%);
         }
 
@@ -200,6 +200,7 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
+        /* 上传按钮 */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
@@ -374,7 +375,8 @@
     
     let debounceMap = new Map();
     let revealTimer = null;
-    let revealWrapper = null;
+    // 使用 weak reference 或 ID 记录当前激活的卡片，更健壮
+    let activeUploadCardId = null; 
     let menuTimer; 
     
     const scroller = document.getElementById('scroller');
@@ -570,7 +572,7 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
-        hideAllIcons(); // 统一清理状态
+        hideAllIcons(); // 上传完成清理状态
         
         const img = wrapper.querySelector('.bg-image');
         if(img) {
@@ -581,13 +583,13 @@
         }
     }
 
-    // --- 核心修复：统一的状态清理函数 ---
+    // 统一的状态清理函数：彻底重置所有上传图标状态
     function hideAllIcons() {
         if (revealTimer) {
             clearTimeout(revealTimer);
             revealTimer = null;
         }
-        revealWrapper = null;
+        activeUploadCardId = null;
         document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
     }
 
@@ -683,7 +685,7 @@
         });
     }
 
-    // 手势侦测优化
+    // --- 核心修复 1：更宽松、更智能的滑动手势 ---
     let touchStartX = 0;
     let touchStartY = 0;
     
@@ -698,8 +700,12 @@
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
         
-        // 逻辑：在最左边(scrollLeft < 40)，水平滑动距离 > 50，且水平幅度大于垂直幅度（防误触）
-        if (scroller.scrollLeft < 40 && diffX > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+        // 修复：放宽 scrollLeft 限制到屏幕宽度的 30% 以内，防止因惯性回弹导致的判定失败
+        // 修复：触发距离 > 40px 即可，无需 60px
+        const isNearStart = scroller.scrollLeft < (window.innerWidth * 0.3);
+        const isHorizontalSwipe = Math.abs(diffX) > Math.abs(diffY) * 1.5; // X轴位移显著大于Y轴
+        
+        if (isNearStart && diffX > 40 && isHorizontalSwipe) {
             activateSearch();
         }
     });
@@ -718,7 +724,7 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- Add Card 逻辑 ---
+            // --- Add Card Logic ---
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -744,35 +750,37 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // --- 核心修复：Upload Icon 逻辑 ---
+            // --- 核心修复 2：绝对稳固的 Upload Icon 逻辑 ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                const fileInput = uploadBtn.querySelector('input[type="file"]');
-                if (!fileInput) return;
+                // 如果没图：直接穿透，触发 input 默认行为
+                if (!wrapper.classList.contains('has-image')) return;
 
-                if (wrapper.classList.contains('has-image')) {
-                    e.preventDefault(); 
-                    e.stopPropagation();
+                // 如果有图，拦截默认行为，开始逻辑判断
+                e.preventDefault(); 
+                e.stopPropagation();
 
-                    // 场景A：同一张卡，且图标已显示 -> 清除所有倒计时，保持常亮，并放行
-                    if (revealWrapper === wrapper && wrapper.classList.contains('reveal-icon')) {
-                        if (revealTimer) {
-                            clearTimeout(revealTimer);
-                            revealTimer = null;
-                        }
-                        fileInput.click(); 
-                        return;
-                    }
+                const currentCardId = wrapper.dataset.id;
 
-                    // 场景B：第一次点击 或 切换卡片 -> 统一清理旧状态 -> 显示新状态
-                    hideAllIcons(); // 清理旧卡
-
-                    wrapper.classList.add('reveal-icon');
-                    revealWrapper = wrapper;
-                    
+                // 状态A：当前图标已显示 -> 续命倒计时，并手动触发文件选择
+                if (activeUploadCardId === currentCardId && wrapper.classList.contains('reveal-icon')) {
+                    if (revealTimer) clearTimeout(revealTimer);
+                    // 重置倒计时，确保用户选图时图标不消失
                     revealTimer = setTimeout(() => hideAllIcons(), 2000);
-                    return; 
+                    
+                    // 手动触发 input
+                    const fileInput = uploadBtn.querySelector('input[type="file"]');
+                    if (fileInput) fileInput.click();
+                    return;
                 }
+
+                // 状态B：图标未显示 (或在其他卡片上) -> 清理旧状态 -> 显示当前 -> 倒计时
+                hideAllIcons(); // 关键：先清场
+
+                wrapper.classList.add('reveal-icon');
+                activeUploadCardId = currentCardId;
+                
+                revealTimer = setTimeout(() => hideAllIcons(), 2000);
                 return;
             }
 
@@ -787,7 +795,6 @@
             if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
             if (!t.closest('.card-back')) {
-                // 点击卡片翻转
                 if (wrapper.id === 'search-wrapper') return;
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
@@ -968,7 +975,7 @@
         scroller.appendChild(wrapper);
     }
 
-    // --- 核心优化：统一的动画计算 (消除首页卡顿) ---
+    // --- 核心修复 3：统一动画计算 ---
     function animateCards() {
         const wrappers = scroller.children;
         const scrollLeft = scroller.scrollLeft;
@@ -991,7 +998,7 @@
             const dist = Math.abs(center - cardCenterX);
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
-            // --- 所有卡片使用完全相同的数学模型 ---
+            // 统一的物理公式，确保所有卡片（包括首页）滑动感一致
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
