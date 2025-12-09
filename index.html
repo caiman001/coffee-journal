@@ -383,11 +383,11 @@
 
 <script>
     /* 
-       BeanDance V85 - Pure Native Interaction
+       BeanDance V88 - The "Blank Frame" Strategy
        Logic: 
-         - No Image: Icon visible.
-         - Has Image: Icon invisible (opacity: 0), but clickable.
-         - Click Action: Native <label> trigger. No JS timers.
+         - Upload Container (<label>) is ALWAYS visible and clickable (opacity: 1).
+         - Only the SVG Icon inside toggles visibility.
+         - Fixes Safari hit-testing issues with fully transparent elements.
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -411,40 +411,43 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- [CSS 样式注入: 纯视觉控制] ---
+    // --- [CSS 策略调整: 空白帧思路] ---
     const style = document.createElement('style');
     style.innerHTML = `
-        /* 1. 上传按钮基础样式 */
+        /* 1. 容器（空白帧）：永远存在，永远可见，确保能被点到 */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
-            /* 关键: 给微弱背景，确保 Safari 即使在透明时也能准确判定点击区域 */
+            /* 微弱背景，强制 Safari 渲染点击层，视觉上几乎不可见 */
             background: rgba(255,255,255,0.01); 
             display: flex; justify-content: center; align-items: center; 
-            z-index: 200; /* 最高层级 */
+            z-index: 200; /* 保证在最上层 */
             cursor: pointer; 
-            pointer-events: auto;
-            
-            /* 平滑过渡效果 */
-            transition: opacity 0.3s ease, transform 0.2s;
-            opacity: 1; /* 默认可见 */
+            pointer-events: auto; /* 强制开启点击响应 */
+            opacity: 1 !important; /* [关键] 容器永远不透明！ */
         }
         
-        /* 修复 SVG 点击穿透 */
-        .upload-btn svg { pointer-events: none; }
+        /* 2. 图标（SVG）：控制它的显隐 */
+        .upload-btn svg { 
+            pointer-events: none; /* 点击穿透给 label */
+            transition: opacity 0.3s ease;
+            opacity: 1; /* 默认显示 */
+        }
 
-        /* 2. 核心需求实现: 有图时隐藏，但保留点击能力 */
-        .card-wrapper.has-image .upload-btn {
-            opacity: 0; /* 视觉不可见 */
+        /* 3. 状态变化：有图时，只把 SVG 变透明，容器保持原样（变成空白帧） */
+        .card-wrapper.has-image .upload-btn svg {
+            opacity: 0;
         }
         
-        /* 3. 触摸反馈: 虽然不可见，但按下时给一点点反馈，提升手感 */
+        /* 4. 触摸反馈：按下时 SVG 稍微显现一下，告知用户这里有功能 */
+        .card-wrapper.has-image .upload-btn:active svg {
+            opacity: 0.5;
+        }
         .upload-btn:active {
-            opacity: 0.5 !important; /* 按下时稍微显现 */
             transform: scale(0.9);
         }
 
-        /* 4. 性能优化 */
+        /* 5. 性能优化 */
         .card-wrapper { will-change: transform; }
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
@@ -728,17 +731,16 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- 事件代理 (极简版) ---
+    // --- 事件代理 (极简版：只阻止冒泡) ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
 
-            // 1. 上传按钮逻辑 - 核心修复
+            // 1. 上传按钮逻辑
+            // 只要阻止了冒泡，原生的 label 就会自动触发 input click
+            // 无论有图没图，label 都在那里，只是里面的 svg 看得见看不见而已
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                // 仅阻止冒泡，防止卡片翻转。
-                // 因为是 <label> 标签，浏览器会自动触发 input click。
-                // 不管是可见(无图)还是不可见(有图)，点击它都会弹出文件选择。
                 e.stopPropagation(); 
                 return;
             }
