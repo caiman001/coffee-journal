@@ -383,8 +383,10 @@
 
 <script>
     /* 
-       BeanDance V66 - iPad Pro Optimized
-       Fixes: Icon Interaction State Machine & Scroll Performance
+       BeanDance V67 - iPad Pro Logic Perfected
+       Fixes: 
+       1. Upload Icon State Machine (Wake -> 3s Wait -> Action)
+       2. Event Propagation (Stop card flipping when clicking icon)
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -399,7 +401,7 @@
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    let revealTimer = null;
+    let revealTimer = null; // 控制图标显示的定时器
     let menuTimer; 
     
     const scroller = document.getElementById('scroller');
@@ -408,14 +410,14 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- Performance Optimization: Inject CSS for GPU Management ---
-    // 仅允许当前激活的卡片播放旋转动画，大幅减少有图时的渲染压力
+    // --- GPU Performance Optimization ---
+    // 仅允许当前激活的卡片播放旋转动画，解决有图滑动卡顿问题
     const style = document.createElement('style');
     style.innerHTML = `
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
             animation-play-state: paused !important;
-            display: none; /* 彻底移除离屏动画 */
+            display: none; 
         }
         .card-wrapper.active .card-front::after {
             display: block;
@@ -560,7 +562,6 @@
         }
     }
 
-    // --- Image Processing Optimized for iPad Pro ---
     function handleImageUpload(e, id) {
         const file = e.target.files[0];
         if(!file) return;
@@ -584,8 +585,7 @@
             showToast('ERROR');
         });
         
-        // Upload done, clear UI state
-        hideAllIcons();
+        hideAllIcons(); // 上传完毕清理状态
     }
 
     function updateImageDOM(wrapper, blob) {
@@ -607,7 +607,6 @@
         document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
     }
 
-    // Performance Optimization: Reduced max dimension to 800px
     function processImage(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -618,8 +617,7 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    // Optimization: 800px is sufficient for iPad Pro cards (approx 360px width @ 2x)
-                    // Reducing from 1200px to 800px reduces memory usage by >50%
+                    // 优化：iPad Pro 渲染性能优化，限制最大纹理尺寸
                     const maxDim = 800; 
                     let w = img.width, h = img.height;
                     if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
@@ -695,7 +693,6 @@
     // --- Touch & Scroll Logic ---
     let touchStartX = 0;
     let touchStartY = 0;
-    // Passive listener for smooth scrolling
     scroller.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
@@ -710,60 +707,64 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- Core Interaction Logic (Fixes Issue 1) ---
+    // --- 核心交互逻辑修复 (State Machine & Event Control) ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // 1. Upload Icon Logic - State Machine
+            // --- 1. Upload Icon Logic ---
             const uploadBtn = t.closest('.upload-btn');
             
-            // 如果点击的是 Upload Button 或者它是父级
             if (uploadBtn) {
+                // [关键修复]：阻止事件冒泡，防止触发卡片翻转
+                e.stopPropagation();
+
                 const wrapper = uploadBtn.closest('.card-wrapper');
                 
-                // 仅处理有图的情况 (无图时默认允许 input file 触发)
-                if (wrapper.classList.contains('has-image')) {
-                    const isRevealed = wrapper.classList.contains('reveal-icon');
-
-                    if (!isRevealed) {
-                        // 状态：隐藏 -> 显示
-                        // 阻止默认行为（不打开相册），只显示图标
-                        e.preventDefault(); 
-                        
-                        // 清理其他已打开的
-                        hideAllIcons();
-                        
-                        // 设置当前状态
-                        wrapper.classList.add('reveal-icon');
-                        
-                        // 启动 3秒 定时器
-                        revealTimer = setTimeout(() => {
-                            wrapper.classList.remove('reveal-icon');
-                            revealTimer = null;
-                        }, 3000);
-                        
-                        // 阻止冒泡，防止被下方的 card click 捕获
-                        e.stopPropagation();
-                        return;
-                    } 
-                    // 状态：已显示 -> 点击了图标
-                    // 逻辑：允许默认行为（e.preventDefault() NOT called），浏览器会打开文件选择器
-                    // 我们不需要做任何事，让 input 正常工作
+                // 情况A：卡片没有图片
+                // 需求：无图常在，点击直接选图
+                if (!wrapper.classList.contains('has-image')) {
+                    // 不调用 preventDefault，让 <label> 默认触发 input
                     return; 
+                }
+
+                // 情况B：卡片有图片
+                // 需求：默认隐藏，点一下唤醒(3s)，再点一下才选图
+                const isRevealed = wrapper.classList.contains('reveal-icon');
+
+                if (isRevealed) {
+                    // 状态：已唤醒，正在3s窗口期内
+                    // 动作：再次点击 -> 执行换图
+                    // 逻辑：允许默认行为 (Input触发)
+                    return;
+                } else {
+                    // 状态：隐藏 (静默态)
+                    // 动作：首次点击 -> 唤醒图标
+                    // 逻辑：阻止默认行为 (不打开Input)，显示图标，开始倒计时
+                    e.preventDefault(); 
+                    
+                    hideAllIcons(); // 清理其他卡片可能存在的倒计时
+                    
+                    wrapper.classList.add('reveal-icon');
+                    
+                    // 3s 后自动隐藏
+                    if (revealTimer) clearTimeout(revealTimer);
+                    revealTimer = setTimeout(() => {
+                        wrapper.classList.remove('reveal-icon');
+                        revealTimer = null;
+                    }, 3000);
+                    
+                    return;
                 }
             }
 
-            // 2. Global Cleanup - Smart Logic
-            // 如果点击的不是 input，不是 upload 按钮，且不是正在显隐操作中的卡片
-            if (!t.closest('input') && !uploadBtn) {
-                // 如果点击的是卡片本身（非按钮区域），我们希望能保留图标一下下（如果它刚显示）
-                // 但根据需求，点空白处通常是清理。
-                // 这里的关键是：不要让“点击卡片翻转”的动作意外杀死了刚点开的图标（虽已被 stopPropagation 保护）
+            // --- 2. Global Cleanup ---
+            // 点击任何非 Input 区域，清理图标状态
+            if (!t.closest('input')) {
                 hideAllIcons();
             }
 
-            // 3. Card Add Logic
+            // --- 3. Add Card Logic ---
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -775,17 +776,16 @@
                     addCoffee(roast);
                     return;
                 }
-                // Toggle Menu Logic
                 if (menuTimer) clearTimeout(menuTimer);
                 addCard.classList.add('active'); 
                 menuTimer = setTimeout(() => {
                     addCard.classList.remove('active'); 
                     menuTimer = null;
-                }, 3000); // Consistent 3s timer
+                }, 3000);
                 return;
             }
 
-            // 4. Standard Card Logic
+            // --- 4. Card Flip Logic ---
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
             if (t.closest('input')) return;
@@ -797,12 +797,10 @@
             }
             if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
-            // Card Flip / Focus Logic
+            // [逻辑说明] 由于我们在上面对 uploadBtn 执行了 stopPropagation
+            // 这里只有点击卡片非按钮区域才会执行，不再会有“误触翻转”的问题
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
-                
-                // 如果图标正在显示，且用户点击卡片非按钮区域，是否应该关闭图标？
-                // 上面的 Global Cleanup 已经处理了。
                 
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
@@ -841,7 +839,6 @@
             }
         });
 
-        // File Input Change
         scroller.addEventListener('change', (e) => {
             if(e.target.type === 'file' && (e.target.classList.contains('card-input') || e.target.classList.contains('bg-input'))) {
                 const wrapper = e.target.closest('.card-wrapper');
