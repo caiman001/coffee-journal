@@ -7,14 +7,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V54 Silky</title>
+    <title>BeanDance V58 Golden Master</title>
     <style>
         :root {
             --bg-color: #000000;
             --card-width: 360px;
             --card-height: 580px;
             --gap: 24px;
-            --total-width: 384px; /* card-width + gap */
             
             --glass-bg: rgba(28, 28, 30, 0.85);
             --glass-shadow: 0 40px 80px -10px rgba(0,0,0,0.9);
@@ -56,9 +55,13 @@
             transform: translateY(-50%);
             align-items: center;
             padding: 0; 
-            will-change: scroll-position;
+            
+            /* 初始状态：不可见 */
             opacity: 0; 
-            transition: opacity 0.8s ease-out;
+            /* 硬件加速，防止动画抖动 */
+            transform: translateY(-50%) translateZ(0);
+            transition: opacity 0.6s ease-out;
+            will-change: opacity, scroll-position;
         }
         .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
@@ -76,9 +79,8 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            /* 性能优化关键：告诉浏览器这个元素会变 */
             will-change: transform, opacity;
-            /* 初始状态 */
+            /* 默认稍微缩小，由 JS 接管动画 */
             transform: scale(0.88);
             opacity: 0.4;
         }
@@ -97,8 +99,6 @@
             border-radius: 40px; box-sizing: border-box;
             background: #000;
             box-shadow: var(--glass-shadow);
-            /* 性能优化：限制重绘区域 */
-            contain: paint layout;
         }
 
         .card-front::after, .card-back::after {
@@ -111,7 +111,12 @@
         }
         @keyframes spin { to { --angle: 360deg; } }
 
-        .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
+        .card-front { 
+            overflow: hidden; 
+            z-index: 2; 
+            /* 强制开启 GPU 加速，解决 Safari 裁剪 Bug */
+            transform: rotateY(0deg) translateZ(0); 
+        }
         
         .bg-placeholder {
             position: absolute; inset: 0;
@@ -119,15 +124,15 @@
             z-index: 0;
         }
 
+        /* 物理防白边：放大至 102% */
         .bg-image { 
-            position: absolute; inset: 0;
-            width: 100%; height: 100%; 
+            position: absolute; 
+            top: -1%; left: -1%;
+            width: 102%; height: 102%; 
             object-fit: cover; 
             transition: opacity 0.5s ease; 
             background-color: #000; 
             z-index: 1;
-            transform: scale(1.02);
-            transform-origin: center center;
             will-change: transform;
             -webkit-backface-visibility: hidden;
         }
@@ -136,7 +141,7 @@
             position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.95) 100%);
             z-index: 2; pointer-events: none;
-            transform: scale(1.01); 
+            transform: scale(1.02); 
             transform-origin: bottom center;
         }
 
@@ -310,9 +315,11 @@
         }
         
         .loading-screen {
-            position: fixed; inset: 0; z-index: 0;
+            position: fixed; inset: 0; z-index: 1000;
+            background: #000;
             display: flex; justify-content: center; align-items: center;
             color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 2px;
+            transition: opacity 0.3s;
         }
     </style>
 </head>
@@ -332,7 +339,7 @@
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
     const METADATA_ID = -1;
-    const CARD_FULL_WIDTH = 384; // 360 + 24
+    const CARD_FULL_WIDTH = 384; 
     
     let db;
     let allCoffeesCache = [];
@@ -343,6 +350,7 @@
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
+    const loader = document.getElementById('loadingText');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -351,18 +359,29 @@
     }
 
     function initDB() {
-        return new Promise((resolve, reject) => {
+        // Race condition: 如果数据库在1秒内没反应（被屏蔽或系统卡顿），则 Resolve 为 null，
+        // 保证 App 能继续启动（离线/无持久化模式），绝不卡死。
+        const dbPromise = new Promise((resolve) => {
             if (!window.indexedDB) return resolve(null);
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
-            request.onupgradeneeded = (e) => {
-                db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                }
-            };
-            request.onsuccess = (e) => { db = e.target.result; resolve(db); };
-            request.onerror = (e) => { resolve(null); };
+            try {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+                request.onerror = () => resolve(null); 
+                request.onblocked = () => resolve(null);
+            } catch (e) {
+                console.error(e);
+                resolve(null);
+            }
         });
+
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1000));
+        return Promise.race([dbPromise, timeoutPromise]);
     }
 
     function getAllCoffees() {
@@ -370,25 +389,22 @@
             if (!db) return resolve([]);
             try {
                 const tx = db.transaction(STORE_NAME, 'readonly');
-                tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result);
-                tx.onerror = () => resolve([]); 
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.getAll();
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = () => resolve([]);
             } catch(e) { resolve([]); }
         });
     }
 
     function scheduleSave(key, fn) {
         if (!db) return; 
-        
-        if (debounceMap.has(key)) {
-            clearTimeout(debounceMap.get(key).timer);
-        }
-
+        if (debounceMap.has(key)) clearTimeout(debounceMap.get(key).timer);
         const timer = setTimeout(() => {
             fn(); 
             debounceMap.delete(key);
             showToast('SAVED');
         }, 500);
-
         debounceMap.set(key, { timer, fn });
     }
 
@@ -434,7 +450,21 @@
     }
 
     async function addCoffee(roast, overrideData = null) {
-        if (!db) { alert("Data storage unavailable"); return; }
+        if (!db) { 
+            // 如果 DB 不可用，仍然允许添加卡片到内存，保证 UI 有反馈
+            const tempId = Date.now();
+            let newCoffee = overrideData || {
+                id: tempId, name: 'New Coffee', 
+                powder: '18', liquid: '36', time: '25', grind: '2.0', 
+                roast: roast || 'medium', imageData: null, created: Date.now()
+            };
+            if(overrideData) delete newCoffee.id;
+            allCoffeesCache.push(newCoffee);
+            renderSingleCard(newCoffee, true);
+            resetAddMenu();
+            return;
+        }
+
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         
@@ -450,15 +480,16 @@
             newCoffee.id = e.target.result;
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
-            
-            if(!overrideData) {
-                const addCard = document.querySelector('.card-add');
-                if(addCard) {
-                    addCard.querySelector('.add-menu').classList.remove('show');
-                    addCard.querySelector('.add-icon').style.display = 'block';
-                }
-            }
+            if(!overrideData) resetAddMenu();
         };
+    }
+
+    function resetAddMenu() {
+        const addCard = document.querySelector('.card-add');
+        if(addCard) {
+            addCard.querySelector('.add-menu').classList.remove('show');
+            addCard.querySelector('.add-icon').style.display = 'block';
+        }
     }
 
     async function deleteCard(id) {
@@ -518,12 +549,7 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
-        
-        // --- 核心修复：上传完成后，清理计时器和状态 ---
-        if (revealTimer) {
-            clearTimeout(revealTimer);
-            revealTimer = null;
-        }
+        if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
 
         const img = wrapper.querySelector('.bg-image');
         if(img) {
@@ -531,7 +557,7 @@
             img.src = URL.createObjectURL(blob);
             img.style.opacity = 1;
             wrapper.classList.add('has-image');
-            wrapper.classList.remove('reveal-icon'); // 强制关闭图标
+            wrapper.classList.remove('reveal-icon');
         }
     }
 
@@ -553,9 +579,9 @@
                     ctx.drawImage(img, 0, 0, w, h);
                     canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
                 };
-                img.onerror = () => reject(new Error("Image Load Error"));
+                img.onerror = () => reject(new Error("Img Error"));
             };
-            reader.onerror = () => reject(new Error("File Read Error"));
+            reader.onerror = () => reject(new Error("File Error"));
         });
     }
 
@@ -574,7 +600,7 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast('EXPORTED (TEXT ONLY)');
+        showToast('EXPORTED');
     }
 
     function handleImport(e) {
@@ -585,16 +611,15 @@
             try {
                 const data = JSON.parse(ev.target.result);
                 if(Array.isArray(data)) {
-                    showToast(`IMPORTING ${data.length} ITEMS...`);
+                    showToast(`IMPORTING ${data.length}...`);
                     for(let item of data) {
                         await addCoffee(item.roast || 'medium', item);
                     }
-                    showToast('IMPORT COMPLETE');
+                    showToast('DONE');
                 } else {
-                    alert("Invalid JSON format");
+                    alert("Invalid JSON");
                 }
             } catch(err) {
-                console.error(err);
                 alert("Import Failed");
             }
         };
@@ -605,20 +630,14 @@
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
-            
             const addCard = t.closest('.card-add');
+            
             if (addCard) {
                 const menu = addCard.querySelector('.add-menu');
                 const icon = addCard.querySelector('.add-icon');
                 
-                if (t.classList.contains('btn-export')) {
-                    handleExport();
-                    return;
-                }
-                if (t.classList.contains('btn-import')) {
-                    document.getElementById('json-import-input').click();
-                    return;
-                }
+                if (t.classList.contains('btn-export')) { handleExport(); return; }
+                if (t.classList.contains('btn-import')) { document.getElementById('json-import-input').click(); return; }
                 if (t.closest('.add-card-footer')) return;
 
                 if (t.classList.contains('add-menu-btn')) {
@@ -636,30 +655,18 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // --- 核心修复：Upload Icon 逻辑 ---
-            if (t.closest('.upload-btn')) {
+            // --- iPad 点击修复 ---
+            const uploadBtn = t.closest('.upload-btn');
+            if (uploadBtn) {
                 if (wrapper.classList.contains('has-image')) {
-                    
-                    // 1. 如果已显示，点击是为了传图 -> 清除计时器，防止2s自动关闭干扰
                     if (wrapper.classList.contains('reveal-icon')) {
-                        if (revealTimer) {
-                            clearTimeout(revealTimer);
-                            revealTimer = null;
-                        }
-                        return; // 允许默认事件（打开文件）
+                        if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+                        return; // 放行，打开文件
                     }
-
-                    // 2. 如果未显示，点击是为了显示 -> 阻止默认（不打开文件）
-                    e.preventDefault(); 
-                    
-                    // 清理旧状态（防止点击Card A后再点Card B导致混乱）
+                    e.preventDefault(); e.stopPropagation();
                     if (revealTimer) clearTimeout(revealTimer);
                     document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
-
-                    // 显示当前
                     wrapper.classList.add('reveal-icon');
-                    
-                    // 启动新倒计时
                     revealTimer = setTimeout(() => {
                         wrapper.classList.remove('reveal-icon');
                         revealTimer = null;
@@ -672,14 +679,11 @@
 
             if (t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
-                if (confirm('Delete Card?')) deleteCard(id);
+                if (confirm('Delete?')) deleteCard(id);
                 return;
             }
 
-            if (t.closest('.btn-done')) {
-                wrapper.classList.remove('flipped');
-                return;
-            }
+            if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
@@ -699,7 +703,6 @@
                     const id = parseInt(wrapper.dataset.id);
                     if (id > 0) key = `coffee-${id}`;
                 }
-                
                 if (key) flushSave(key);
             }
         });
@@ -712,11 +715,7 @@
             const wrapper = input.closest('.card-wrapper');
             if(!wrapper) return;
 
-            if (input.classList.contains('search-input-inline')) {
-                handleSearch(input.value);
-                return;
-            }
-
+            if (input.classList.contains('search-input-inline')) { handleSearch(input.value); return; }
             if (input.classList.contains('app-brand-title-input')) return updateMetadata('title', input.value);
             if (input.classList.contains('app-brand-author-input')) return updateMetadata('author', input.value);
 
@@ -742,7 +741,8 @@
 
     async function initApp() {
         try {
-            await initDB(); 
+            await initDB(); // 现在保证 1s 内必返回
+            
             const allData = await getAllCoffees();
             const meta = allData.find(c => c.id === METADATA_ID);
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
@@ -761,13 +761,13 @@
             setupDelegation();
             requestAnimationFrame(animateCards);
 
-            setTimeout(() => {
-                document.getElementById('loadingText').style.display = 'none';
-                scroller.classList.add('visible');
-            }, 300);
-
         } catch (e) {
-            console.error("Init Failed:", e);
+            console.error("Init Error", e);
+        } finally {
+            // 无论如何，移除 Loading，显示界面
+            loader.style.opacity = '0';
+            setTimeout(() => { loader.style.display = 'none'; }, 300);
+            scroller.classList.add('visible');
         }
     }
 
@@ -853,7 +853,6 @@
         
         if (isInsert) {
             scroller.insertBefore(wrapper, document.getElementById('add-card-wrapper'));
-            // 因为使用了 Math.abs 计算位置，不需要等待 DOM reflow，直接滚动即可
             requestAnimationFrame(() => wrapper.scrollIntoView({behavior:'smooth', inline:'center'}));
         } else {
             scroller.appendChild(wrapper);
@@ -886,34 +885,23 @@
         scroller.appendChild(wrapper);
     }
 
-    // --- 核心优化：纯数学计算的丝滑动画 ---
     function animateCards() {
         const wrappers = scroller.children;
         const scrollLeft = scroller.scrollLeft;
         const viewportWidth = window.innerWidth;
         const center = viewportWidth / 2;
-        
-        // 预计算常量
-        const itemWidth = 384; // 360 + 24
-        const halfCard = 180; // 360 / 2
-        // 第一个卡片的起始位置（padding-left）
+        const itemWidth = 384; 
+        const halfCard = 180; 
         const startOffset = (viewportWidth - 360) / 2; 
 
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
             if (card.style.display === 'none') continue;
             
-            // 计算卡片中心点相对于视口的距离（纯数学，不读DOM）
-            // 卡片左边位置 = startOffset + i * itemWidth - scrollLeft
-            // 卡片中心 = 左边 + halfCard
-            // 距离中心 = abs(center - 卡片中心)
             const cardCenterX = startOffset + i * itemWidth - scrollLeft + halfCard;
             const dist = Math.abs(center - cardCenterX);
-            
-            // 归一化距离：0 = 中心，1 = 边缘
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
-            // --- 搜索卡片特效 ---
             if (card.id === 'search-wrapper') {
                 if (dist > 50) {
                     const scale = Math.max(0.85, 1 - Math.pow(normalizedDist * 0.5, 1.5));
@@ -927,7 +915,6 @@
                 continue;
             }
 
-            // --- 普通卡片特效 ---
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
@@ -945,7 +932,12 @@
         requestAnimationFrame(animateCards);
     }
 
-    window.addEventListener('DOMContentLoaded', initApp);
+    // 终极修复：自动检测 readyState，防止黑屏
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+        initApp();
+    }
 
 </script>
 </body>
