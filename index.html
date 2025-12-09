@@ -383,9 +383,10 @@
 
 <script>
     /* 
-       BeanDance V70 - The Logic Rewrite
-       1. Interaction: Switched from <label> to <div> for 100% JS control over File Input.
-       2. Performance: Optimized Layer compositing strategies for iPad Pro.
+       BeanDance V71 - iPad Pro Stable Fix
+       1. Interaction: Fixed "Ghost Click" causing icon to disappear immediately.
+       2. Event: Added pointer-events:none to SVGs to ensure solid hit testing.
+       3. Performance: Kept GPU optimization for smooth scrolling.
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -403,6 +404,7 @@
     let revealTimer = null; 
     let menuTimer; 
     let lastScrollLeft = -1; 
+    let lastButtonActionTime = 0; // [修复核心] 用于防止幽灵点击
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
@@ -410,15 +412,22 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- [性能优化] 样式注入 ---
-    // 策略调整：
-    // 1. .card-wrapper 全局开启 transform 硬件加速，避免滚动时图层重建。
-    // 2. 仅对 .active 卡片显示伪元素(流光边框)，大幅降低 GPU 负载。
+    // --- [CSS 修复 & 性能优化] ---
     const style = document.createElement('style');
     style.innerHTML = `
-        .card-wrapper {
-            will-change: transform; /* 常驻 GPU 层，避免闪烁 */
+        /* [关键修复] 确保点击 SVG 时，目标永远是 .upload-btn，防止 closest 判空 */
+        .upload-btn svg {
+            pointer-events: none;
         }
+        /* 提升按钮层级，防止被流光遮挡 */
+        .upload-btn {
+            z-index: 20;
+        }
+        /* 性能优化：卡片常驻 GPU 层 */
+        .card-wrapper {
+            will-change: transform;
+        }
+        /* 性能优化：非 Active 卡片隐藏流光层 */
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
             animation: none !important;
@@ -624,7 +633,6 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    // 保持 640px 优化配置
                     const maxDim = 640; 
                     let w = img.width, h = img.height;
                     if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
@@ -717,24 +725,29 @@
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
+            const now = Date.now();
 
-            // [安全检查]：如果事件源是 Input 本身（通常是 JS 触发的），直接忽略，防止递归或逻辑冲突
+            // [修复] 如果事件源是 JS 触发的 Input 本身，忽略，防止死循环
             if (t.tagName === 'INPUT' && t.type === 'file') return;
             
-            // 1. Upload Icon Logic (Using DIV control)
+            // 1. Upload Icon Logic (Fixed for iPad Ghosts)
             const uploadBtn = t.closest('.upload-btn');
+            
             if (uploadBtn) {
-                // 阻止冒泡，防止卡片翻转
+                // 阻止冒泡
                 e.stopPropagation();
+
+                // [修复] 防止短时间内重复触发（幽灵点击）
+                if (now - lastButtonActionTime < 300) return;
+                lastButtonActionTime = now;
 
                 const wrapper = uploadBtn.closest('.card-wrapper');
                 const hasImage = wrapper.classList.contains('has-image');
                 const isRevealed = wrapper.classList.contains('reveal-icon');
                 
-                // 获取内部真正的 Input
                 const fileInput = uploadBtn.querySelector('input');
 
-                // 场景 A: 无图 -> 直接触发 Input 点击
+                // 场景 A: 无图 -> 直接触发
                 if (!hasImage) {
                     if(fileInput) fileInput.click();
                     return; 
@@ -743,21 +756,20 @@
                 // 场景 B: 有图
                 if (hasImage) {
                     if (isRevealed) {
-                        // 场景 B2: 已唤醒 -> 点击 -> 触发 Input (换图)
+                        // 场景 B2: 已唤醒 -> 换图
                         if(fileInput) fileInput.click();
                         
-                        // 重置 3s 倒计时 (让图标在用户回来后保持显示一会儿)
+                        // 重置计时器
                         if (revealTimer) clearTimeout(revealTimer);
                         revealTimer = setTimeout(() => {
                             wrapper.classList.remove('reveal-icon');
                             revealTimer = null;
                         }, 3000);
                     } else {
-                        // 场景 B1: 未唤醒 -> 点击 -> 仅显示图标
+                        // 场景 B1: 未唤醒 -> 唤醒
                         hideAllIcons(); // 清理其他
-                        wrapper.classList.add('reveal-icon'); // 显示当前
+                        wrapper.classList.add('reveal-icon'); 
                         
-                        // 3s 倒计时
                         if (revealTimer) clearTimeout(revealTimer);
                         revealTimer = setTimeout(() => {
                             wrapper.classList.remove('reveal-icon');
@@ -768,9 +780,14 @@
                 }
             }
 
-            // 2. Global Cleanup
-            // 点击任何非 Input 区域，清理图标状态
-            if (!t.closest('input')) {
+            // 2. Global Cleanup - [修复] 只有点到特定区域才清理
+            // 不要因为点击了图标的一点点边缘（导致 closest 失败）就触发清理
+            // 我们检查是否点到了卡片容器或背景占位符，或者是输入框以外的地方
+            const isInput = t.closest('input');
+            const isClickable = t.closest('.btn-text') || t.closest('.add-menu-btn') || t.closest('.btn-io');
+            
+            // 只有当点击的不是输入框，也不是功能按钮，且不是 uploadBtn (上面已处理) 时，才执行清理
+            if (!isInput && !isClickable && !uploadBtn) {
                 hideAllIcons();
             }
 
@@ -857,7 +874,7 @@
         });
     }
 
-    // --- Initialization & Render (Modified for <div class="upload-btn">) ---
+    // --- Initialization ---
     async function initApp() {
         try {
             await initDB(); 
@@ -885,7 +902,6 @@
         }
     }
 
-    // 修改：将 label 改为 div，彻底切断默认行为
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
