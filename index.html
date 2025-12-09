@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V47 Clean UI</title>
+    <title>BeanDance V48 Silky</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -75,7 +75,7 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            transform: scale(0.9);
+            /* 移除 CSS transition，完全交由 JS 逐帧控制以获得最丝滑效果 */
             will-change: transform, opacity;
         }
         .card-wrapper.active { z-index: 100; }
@@ -164,40 +164,24 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* --- 智能上传按钮 (修改版) --- */
+        /* --- 智能上传按钮 --- */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
-            /* 1. 去掉背景阴影衬底 */
             background: transparent; 
-            /* backdrop-filter: blur(4px);  <-- 去掉模糊 */
             display: flex; justify-content: center; align-items: center; z-index: 20;
             cursor: pointer; pointer-events: auto;
             opacity: 0.8;
             transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        
         .upload-btn svg { 
             stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
-            /* 增加投影以保证在白色图片上的可见度 */
             filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9));
             transition: transform 0.2s ease;
         }
-        
         .upload-btn:active svg { transform: scale(0.85); }
-
-        /* 有图片时：完全透明，但保持 pointer-events: auto 以便接收点击 */
-        .card-wrapper.has-image .upload-btn { 
-            opacity: 0; 
-            transform: scale(0.8); 
-            pointer-events: auto; /* 关键：即使看不见也能点 */
-        }
-        
-        /* 激活显示时：不透明度恢复 */
-        .card-wrapper.has-image.reveal-icon .upload-btn { 
-            opacity: 1; 
-            transform: scale(1.1); 
-        }
+        .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(0.8); pointer-events: auto; }
+        .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); }
 
         .card-back {
             transform: rotateY(180deg); z-index: 1;
@@ -248,6 +232,7 @@
         .btn-delete { background: rgba(255, 69, 58, 0.1); color: #FF453A; }
         .btn-delete:active { background: rgba(255, 69, 58, 0.2); }
 
+        /* --- 新建卡片区域 (优化版) --- */
         .card-add {
             background: rgba(255,255,255,0.02); position: relative;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -272,6 +257,21 @@
             transition: background 0.2s;
         }
         .add-menu-btn:active { background: rgba(255,255,255,0.15); }
+        
+        /* 导入导出区域 */
+        .add-card-footer {
+            position: absolute; bottom: 30px; left: 0; width: 100%;
+            display: flex; justify-content: center; gap: 20px;
+            z-index: 30;
+        }
+        .btn-io {
+            font-size: 11px; font-weight: 700; letter-spacing: 1px;
+            color: rgba(255,255,255,0.3); padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-io:active { color: white; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05); }
+
         .opt-light { color: #ffe0b2; }
         .opt-medium { color: #ffccbc; }
         .opt-dark { color: #d7ccc8; }
@@ -336,7 +336,7 @@
     function showToast(msg) {
         toast.innerText = msg;
         toast.style.opacity = '1';
-        setTimeout(() => toast.style.opacity = '0', 1500);
+        setTimeout(() => toast.style.opacity = '0', 2000);
     }
 
     function initDB() {
@@ -407,23 +407,32 @@
         } catch(e) { console.error(e); }
     }
 
-    async function addCoffee(roast) {
-        if (!db) { alert("Data storage unavailable (File mode?)"); return; }
+    async function addCoffee(roast, overrideData = null) {
+        if (!db) { alert("Data storage unavailable"); return; }
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
-        const newCoffee = {
+        
+        let newCoffee = overrideData || {
             name: 'New Coffee', 
             powder: '18', liquid: '36', time: '25', grind: '2.0', 
-            roast: roast, imageData: null, created: Date.now()
+            roast: roast || 'medium', imageData: null, created: Date.now()
         };
+        
+        // 确保没有 ID 冲突，让 DB 自动生成
+        if(overrideData) delete newCoffee.id;
+
         store.add(newCoffee).onsuccess = (e) => {
             newCoffee.id = e.target.result;
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
-            const addCard = document.querySelector('.card-add');
-            if(addCard) {
-                addCard.querySelector('.add-menu').classList.remove('show');
-                addCard.querySelector('.add-icon').style.display = 'block';
+            
+            // 只有手动添加时重置菜单
+            if(!overrideData) {
+                const addCard = document.querySelector('.card-add');
+                if(addCard) {
+                    addCard.querySelector('.add-menu').classList.remove('show');
+                    addCard.querySelector('.add-icon').style.display = 'block';
+                }
             }
         };
     }
@@ -506,6 +515,52 @@
         });
     }
 
+    // --- 导出逻辑 (仅文本) ---
+    function handleExport() {
+        const cleanData = allCoffeesCache.map(c => {
+            const { imageData, ...rest } = c; // 排除图片以减小文件体积
+            return rest;
+        });
+        const jsonStr = JSON.stringify(cleanData, null, 2);
+        const blob = new Blob([jsonStr], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `BeanDance_Backup_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('EXPORTED (TEXT ONLY)');
+    }
+
+    // --- 导入逻辑 ---
+    function handleImport(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                if(Array.isArray(data)) {
+                    showToast(`IMPORTING ${data.length} ITEMS...`);
+                    for(let item of data) {
+                        await addCoffee(item.roast || 'medium', item);
+                    }
+                    showToast('IMPORT COMPLETE');
+                } else {
+                    alert("Invalid JSON format");
+                }
+            } catch(err) {
+                console.error(err);
+                alert("Import Failed");
+            }
+        };
+        reader.readAsText(file);
+        // 清空 input 允许重复选择同一文件
+        e.target.value = '';
+    }
+
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
@@ -514,6 +569,19 @@
             if (addCard) {
                 const menu = addCard.querySelector('.add-menu');
                 const icon = addCard.querySelector('.add-icon');
+                
+                // 处理导入导出按钮
+                if (t.classList.contains('btn-export')) {
+                    handleExport();
+                    return;
+                }
+                if (t.classList.contains('btn-import')) {
+                    document.getElementById('json-import-input').click();
+                    return;
+                }
+                // 不要让导入导出区域的点击触发菜单开关
+                if (t.closest('.add-card-footer')) return;
+
                 if (t.classList.contains('add-menu-btn')) {
                     let roast = 'medium';
                     if (t.classList.contains('opt-light')) roast = 'light';
@@ -529,25 +597,15 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // --- 2. 优化后的上传按钮点击逻辑 ---
             if (t.closest('.upload-btn')) {
-                // 如果已经有图片了
                 if (wrapper.classList.contains('has-image')) {
-                    // 如果图标还没显示（状态：隐形）
                     if (!wrapper.classList.contains('reveal-icon')) {
-                        e.preventDefault(); // 阻止打开文件选择器
-                        
-                        // 显示所有图标（或者只显示当前，这里选择只显示当前更专注）
+                        e.preventDefault(); 
                         wrapper.classList.add('reveal-icon');
-                        
-                        // 2秒后自动消失
                         if (revealTimer) clearTimeout(revealTimer);
                         revealTimer = setTimeout(() => {
                             wrapper.classList.remove('reveal-icon');
-                        }, 2000); // 2秒
-                    } else {
-                        // 如果图标已经是显示状态，什么都不做，让默认行为(打开文件)发生
-                        // 这时候点击 input 会正常弹出
+                        }, 2000);
                     }
                 }
                 return; 
@@ -572,6 +630,10 @@
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
         });
+
+        // 绑定隐藏的文件输入框
+        const importInput = document.getElementById('json-import-input');
+        if(importInput) importInput.addEventListener('change', handleImport);
 
         scroller.addEventListener('input', (e) => {
             const input = e.target;
@@ -598,7 +660,7 @@
         });
 
         scroller.addEventListener('change', (e) => {
-            if(e.target.type === 'file') {
+            if(e.target.type === 'file' && e.target.classList.contains('card-input') || e.target.classList.contains('bg-input')) {
                 const wrapper = e.target.closest('.card-wrapper');
                 const id = parseInt(wrapper.dataset.id);
                 handleImageUpload(e, id);
@@ -739,6 +801,11 @@
                             <div class="add-menu-btn opt-medium" data-roast="medium">Medium</div>
                             <div class="add-menu-btn opt-dark" data-roast="dark">Dark</div>
                         </div>
+                        <div class="add-card-footer">
+                            <span class="btn-io btn-import">IMPORT</span>
+                            <span class="btn-io btn-export">EXPORT</span>
+                            <input type="file" id="json-import-input" accept=".json" hidden>
+                        </div>
                     </div>
                 </div>
                 <div class="card-back" style="display:none"></div>
@@ -746,25 +813,34 @@
         scroller.appendChild(wrapper);
     }
 
+    // --- 核心优化：丝滑滑动算法 ---
     function animateCards() {
         const wrappers = scroller.children;
         const center = window.innerWidth / 2;
+        const viewportWidth = window.innerWidth;
         
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
             if (card.style.display === 'none') continue;
 
             const rect = card.getBoundingClientRect();
-            if (rect.right < 0 || rect.left > window.innerWidth) continue;
+            // 稍宽的剔除范围，保证进入视野时已经计算好
+            if (rect.right < -100 || rect.left > viewportWidth + 100) continue;
 
             const cardCenter = rect.left + rect.width / 2;
             const dist = Math.abs(center - cardCenter);
             
+            // 归一化距离：0 = 中心，1 = 边缘 (大约)
+            const normalizedDist = dist / (viewportWidth * 0.6); 
+            
+            // --- 搜索卡片特效 ---
             if (card.id === 'search-wrapper') {
                 if (dist > 50) {
-                    const r = Math.min((dist - 50) / 350, 1);
-                    card.style.transform = `scale(${Math.max(0.85, 1 - r*0.15)})`;
-                    card.style.opacity = Math.max(0, 1 - r*1.5);
+                    // 更平滑的曲线
+                    const scale = Math.max(0.85, 1 - Math.pow(normalizedDist * 0.5, 1.5));
+                    const opacity = Math.max(0, 1 - Math.pow(normalizedDist * 0.8, 1.2));
+                    card.style.transform = `scale(${scale})`;
+                    card.style.opacity = opacity;
                 } else {
                     card.style.transform = 'scale(1)';
                     card.style.opacity = 1;
@@ -772,23 +848,25 @@
                 continue;
             }
 
-            if (dist < 300) {
-                const r = dist / 300;
-                const scale = 1 - r * 0.1;
-                card.style.transform = `scale(${scale})`;
-                card.style.opacity = 1 - r * 0.3; 
-                
-                if (dist < 150) {
-                    card.classList.add('active');
-                    card.style.opacity = 1;
-                } else {
-                    card.classList.remove('active');
-                    if(card.classList.contains('flipped')) card.classList.remove('flipped');
-                }
+            // --- 普通卡片特效 (Silky Smooth) ---
+            // 使用 Math.max 限制最小值，使用 Math.pow 制造非线性平滑衰减
+            
+            // 缩放：中心1.0 -> 边缘约0.88
+            const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
+            
+            // 透明度：中心1.0 -> 边缘约0.4，曲线更平缓
+            const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
+
+            card.style.transform = `scale(${scale})`;
+            card.style.opacity = opacity;
+
+            // 激活状态判定 (用于翻转)
+            if (dist < 150) {
+                card.classList.add('active');
+                card.style.opacity = 1; // 强制中心最亮
             } else {
-                card.style.transform = 'scale(0.9)';
-                card.style.opacity = 0.5;
                 card.classList.remove('active');
+                if(card.classList.contains('flipped')) card.classList.remove('flipped');
             }
         }
         requestAnimationFrame(animateCards);
