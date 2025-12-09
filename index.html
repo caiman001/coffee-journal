@@ -7,13 +7,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V53 Final Perfect</title>
+    <title>BeanDance V54 Silky</title>
     <style>
         :root {
             --bg-color: #000000;
             --card-width: 360px;
             --card-height: 580px;
             --gap: 24px;
+            --total-width: 384px; /* card-width + gap */
             
             --glass-bg: rgba(28, 28, 30, 0.85);
             --glass-shadow: 0 40px 80px -10px rgba(0,0,0,0.9);
@@ -75,7 +76,11 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
+            /* 性能优化关键：告诉浏览器这个元素会变 */
             will-change: transform, opacity;
+            /* 初始状态 */
+            transform: scale(0.88);
+            opacity: 0.4;
         }
         .card-wrapper.active { z-index: 100; }
 
@@ -92,6 +97,8 @@
             border-radius: 40px; box-sizing: border-box;
             background: #000;
             box-shadow: var(--glass-shadow);
+            /* 性能优化：限制重绘区域 */
+            contain: paint layout;
         }
 
         .card-front::after, .card-back::after {
@@ -325,7 +332,7 @@
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
     const METADATA_ID = -1;
-    const CARD_FULL_WIDTH = 384; 
+    const CARD_FULL_WIDTH = 384; // 360 + 24
     
     let db;
     let allCoffeesCache = [];
@@ -461,7 +468,6 @@
             return;
         }
 
-        // --- 核心修复：防止僵尸数据复活 (Fix for pending saves resurrecting deleted cards) ---
         const key = `coffee-${id}`;
         if (debounceMap.has(key)) {
             clearTimeout(debounceMap.get(key).timer);
@@ -513,7 +519,7 @@
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
         
-        // --- 核心修复：上传完成后，强制清理计时器 ---
+        // --- 核心修复：上传完成后，清理计时器和状态 ---
         if (revealTimer) {
             clearTimeout(revealTimer);
             revealTimer = null;
@@ -525,7 +531,7 @@
             img.src = URL.createObjectURL(blob);
             img.style.opacity = 1;
             wrapper.classList.add('has-image');
-            wrapper.classList.remove('reveal-icon'); // 确保隐藏，等待用户下次点击
+            wrapper.classList.remove('reveal-icon'); // 强制关闭图标
         }
     }
 
@@ -630,12 +636,11 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // --- 核心修复：Upload Icon 交互逻辑 ---
+            // --- 核心修复：Upload Icon 逻辑 ---
             if (t.closest('.upload-btn')) {
                 if (wrapper.classList.contains('has-image')) {
                     
-                    // 场景A：图标已显示，用户点击是为了打开文件选择器
-                    // 修复：此时必须停止倒计时，防止在选择文件时图标自动消失导致逻辑错乱
+                    // 1. 如果已显示，点击是为了传图 -> 清除计时器，防止2s自动关闭干扰
                     if (wrapper.classList.contains('reveal-icon')) {
                         if (revealTimer) {
                             clearTimeout(revealTimer);
@@ -644,17 +649,17 @@
                         return; // 允许默认事件（打开文件）
                     }
 
-                    // 场景B：图标隐藏，用户点击是为了显示图标
+                    // 2. 如果未显示，点击是为了显示 -> 阻止默认（不打开文件）
                     e.preventDefault(); 
                     
-                    // 1. 清理旧状态（防止点击Card A后再点Card B导致状态叠加）
+                    // 清理旧状态（防止点击Card A后再点Card B导致混乱）
                     if (revealTimer) clearTimeout(revealTimer);
                     document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
 
-                    // 2. 显示当前
+                    // 显示当前
                     wrapper.classList.add('reveal-icon');
                     
-                    // 3. 启动新倒计时
+                    // 启动新倒计时
                     revealTimer = setTimeout(() => {
                         wrapper.classList.remove('reveal-icon');
                         revealTimer = null;
@@ -848,6 +853,7 @@
         
         if (isInsert) {
             scroller.insertBefore(wrapper, document.getElementById('add-card-wrapper'));
+            // 因为使用了 Math.abs 计算位置，不需要等待 DOM reflow，直接滚动即可
             requestAnimationFrame(() => wrapper.scrollIntoView({behavior:'smooth', inline:'center'}));
         } else {
             scroller.appendChild(wrapper);
@@ -880,22 +886,34 @@
         scroller.appendChild(wrapper);
     }
 
+    // --- 核心优化：纯数学计算的丝滑动画 ---
     function animateCards() {
         const wrappers = scroller.children;
-        const center = window.innerWidth / 2;
+        const scrollLeft = scroller.scrollLeft;
         const viewportWidth = window.innerWidth;
+        const center = viewportWidth / 2;
         
+        // 预计算常量
+        const itemWidth = 384; // 360 + 24
+        const halfCard = 180; // 360 / 2
+        // 第一个卡片的起始位置（padding-left）
+        const startOffset = (viewportWidth - 360) / 2; 
+
         for (let i = 0; i < wrappers.length; i++) {
             const card = wrappers[i];
             if (card.style.display === 'none') continue;
-
-            const rect = card.getBoundingClientRect();
-            if (rect.right < -100 || rect.left > viewportWidth + 100) continue;
-
-            const cardCenter = rect.left + rect.width / 2;
-            const dist = Math.abs(center - cardCenter);
+            
+            // 计算卡片中心点相对于视口的距离（纯数学，不读DOM）
+            // 卡片左边位置 = startOffset + i * itemWidth - scrollLeft
+            // 卡片中心 = 左边 + halfCard
+            // 距离中心 = abs(center - 卡片中心)
+            const cardCenterX = startOffset + i * itemWidth - scrollLeft + halfCard;
+            const dist = Math.abs(center - cardCenterX);
+            
+            // 归一化距离：0 = 中心，1 = 边缘
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
+            // --- 搜索卡片特效 ---
             if (card.id === 'search-wrapper') {
                 if (dist > 50) {
                     const scale = Math.max(0.85, 1 - Math.pow(normalizedDist * 0.5, 1.5));
@@ -909,6 +927,7 @@
                 continue;
             }
 
+            // --- 普通卡片特效 ---
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
