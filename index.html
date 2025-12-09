@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V61 Custom Layout</title>
+    <title>BeanDance V62 Ultra</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -43,6 +43,30 @@
             justify-content: center; align-items: center;
         }
 
+        /* --- 搜索覆盖层 (新) --- */
+        .search-overlay {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            display: flex; flex-direction: column; align-items: center; padding-top: 120px;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .search-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .search-input-large {
+            background: transparent; border: none; outline: none;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            color: white; font-size: 32px; font-weight: 700;
+            width: 80%; text-align: center; padding-bottom: 10px;
+            font-family: inherit; letter-spacing: 1px;
+            caret-color: #D4A373;
+        }
+        .search-input-large::placeholder { color: rgba(255,255,255,0.2); }
+        .search-hint {
+            margin-top: 20px; color: rgba(255,255,255,0.4); font-size: 12px; letter-spacing: 2px;
+        }
+
+        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
             gap: var(--gap);
@@ -127,8 +151,7 @@
             transform-origin: bottom center;
         }
 
-        /* --- 1. 搜索页排版：恢复沉底布局 --- */
-        /* 通用卡片内容布局 (搜索页和咖啡页共用) */
+        /* 统一卡片排版：全部沉底 */
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 5;
@@ -152,7 +175,7 @@
             font-family: inherit; width: 100%; text-align: center; padding: 0;
             font-size: 10px; font-weight: 600; letter-spacing: 6px; 
             text-transform: uppercase; color: rgba(255,255,255,0.5);
-            margin: 0; 
+            margin: 4px 0 0 0; 
             caret-color: #fff;
         }
 
@@ -248,17 +271,20 @@
             font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; pointer-events: none;
             transition: opacity 0.3s;
         }
-        .card-add.active .add-icon { opacity: 0; display: none; }
+        .card-add.active .add-icon { opacity: 0; }
 
-        /* --- 2. 新增卡片页布局分离 --- */
-        
-        /* 烘焙度选项：绝对居中 */
+        /* --- 修复：使用 visibility 控制，防止动画跳动 --- */
         .add-roast-group {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: flex; flex-direction: column; gap: 12px; width: 60%;
-            z-index: 20; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            z-index: 20; 
+            visibility: hidden; opacity: 0; 
+            transition: opacity 0.3s ease, visibility 0s linear 0.3s; /* 延迟隐藏 visibility */
         }
-        .card-add.active .add-roast-group { opacity: 1; pointer-events: auto; animation: fadeIn 0.3s ease; }
+        .card-add.active .add-roast-group { 
+            visibility: visible; opacity: 1; 
+            transition: opacity 0.3s ease, visibility 0s; /* 立即显示 visibility */
+        }
 
         .add-menu-btn {
             background: rgba(255,255,255,0.08); padding: 16px; border-radius: 16px;
@@ -268,13 +294,17 @@
         }
         .add-menu-btn:active { background: rgba(255,255,255,0.15); }
         
-        /* 导入导出：沉底 */
         .add-io-group {
             position: absolute; bottom: 30px; left: 0; width: 100%;
             display: flex; justify-content: center; gap: 20px;
-            z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            z-index: 30; 
+            visibility: hidden; opacity: 0;
+            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
         }
-        .card-add.active .add-io-group { opacity: 1; pointer-events: auto; }
+        .card-add.active .add-io-group { 
+            visibility: visible; opacity: 1; 
+            transition: opacity 0.3s ease, visibility 0s;
+        }
 
         .btn-io {
             font-size: 11px; font-weight: 700; letter-spacing: 1px;
@@ -287,28 +317,12 @@
         .opt-light { color: #ffe0b2; }
         .opt-medium { color: #ffccbc; }
         .opt-dark { color: #d7ccc8; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .search-bar-wrapper {
-            display: flex; align-items: center; justify-content: center; margin-top: 10px;
-            opacity: 0.7; transition: opacity 0.3s; pointer-events: auto;
-        }
-        .search-bar-wrapper:focus-within { opacity: 1; }
-        .search-icon-small { width: 16px; height: 16px; stroke: rgba(255,255,255,0.8); margin-right: 10px; }
-        .search-input-inline {
-            background: transparent; border: none; outline: none;
-            color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px; font-weight: 500;
-            text-transform: uppercase; width: 120px;
-            font-family: inherit; border-bottom: 1px solid rgba(255,255,255,0.3);
-            text-align: center; padding-bottom: 4px;
-        }
-        .search-input-inline::placeholder { color: rgba(255,255,255,0.5); }
 
         .status-toast {
             position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
-            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 500; font-weight: 600;
         }
         
         .loading-screen {
@@ -322,6 +336,12 @@
 </head>
 <body>
 
+<!-- 搜索覆盖层 -->
+<div class="search-overlay" id="searchOverlay">
+    <input type="text" class="search-input-large" id="searchInput" placeholder="SEARCH...">
+    <div class="search-hint">TAP TO CLOSE</div>
+</div>
+
 <div class="loading-screen" id="loadingText">INITIALIZING...</div>
 <div class="status-toast" id="statusToast">SAVED</div>
 
@@ -334,7 +354,7 @@
     const DB_NAME = 'BeanDance_V46_Stable'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
-    const SEARCH_BG_ID = 0;
+    const SEARCH_BG_ID = 0; // 其实是首页 ID
     const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
     
@@ -350,6 +370,8 @@
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
     const loader = document.getElementById('loadingText');
+    const searchOverlay = document.getElementById('searchOverlay');
+    const searchInput = document.getElementById('searchInput');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -625,6 +647,55 @@
         e.target.value = '';
     }
 
+    // --- 搜索功能相关 ---
+    function activateSearch() {
+        searchOverlay.classList.add('active');
+        searchInput.focus();
+    }
+
+    function deactivateSearch() {
+        searchOverlay.classList.remove('active');
+        searchInput.blur();
+    }
+
+    function handleSearch(query) {
+        const lower = query.toLowerCase().trim();
+        document.querySelectorAll('.card-wrapper[data-id]').forEach(card => {
+            const id = parseInt(card.dataset.id);
+            if(id === SEARCH_BG_ID) return;
+            const data = allCoffeesCache.find(c => c.id === id);
+            if(data) {
+                const match = !lower || (data.name && data.name.toLowerCase().includes(lower));
+                card.style.display = match ? 'block' : 'none';
+            }
+        });
+    }
+
+    // 手势侦测
+    let touchStartX = 0;
+    scroller.addEventListener('touchstart', e => {
+        touchStartX = e.touches[0].clientX;
+    });
+    scroller.addEventListener('touchmove', e => {
+        const touchCurrentX = e.touches[0].clientX;
+        const diff = touchCurrentX - touchStartX;
+        
+        // 逻辑：如果在最左边（scrollLeft <= 0），且向右滑（diff > 80），则触发搜索
+        if (scroller.scrollLeft <= 0 && diff > 80) {
+            activateSearch();
+        }
+    });
+
+    searchOverlay.addEventListener('click', (e) => {
+        if (e.target === searchOverlay || e.target.classList.contains('search-hint')) {
+            deactivateSearch();
+        }
+    });
+    
+    searchInput.addEventListener('input', (e) => {
+        handleSearch(e.target.value);
+    });
+
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
@@ -743,7 +814,6 @@
             const wrapper = input.closest('.card-wrapper');
             if(!wrapper) return;
 
-            if (input.classList.contains('search-input-inline')) { handleSearch(input.value); return; }
             if (input.classList.contains('app-brand-title-input')) return updateMetadata('title', input.value);
             if (input.classList.contains('app-brand-author-input')) return updateMetadata('author', input.value);
 
@@ -797,19 +867,6 @@
         }
     }
 
-    function handleSearch(query) {
-        const lower = query.toLowerCase().trim();
-        document.querySelectorAll('.card-wrapper[data-id]').forEach(card => {
-            const id = parseInt(card.dataset.id);
-            if(id === SEARCH_BG_ID) return;
-            const data = allCoffeesCache.find(c => c.id === id);
-            if(data) {
-                const match = !lower || (data.name && data.name.toLowerCase().includes(lower));
-                card.style.display = match ? 'block' : 'none';
-            }
-        });
-    }
-
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -821,6 +878,7 @@
         if(data && data.imageData) { src = URL.createObjectURL(data.imageData); hasImg = true; }
         if(hasImg) wrapper.classList.add('has-image');
 
+        // 已移除搜索框，布局与咖啡卡片一致（沉底）
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
@@ -831,10 +889,6 @@
                     <div class="card-content">
                         <input type="text" class="app-brand-title-input" value="${appMetadata.title}">
                         <input type="text" class="app-brand-author-input" value="${appMetadata.author}">
-                        <div class="search-bar-wrapper">
-                            <svg class="search-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            <input type="text" class="search-input-inline" placeholder="SEARCH...">
-                        </div>
                     </div>
                 </div>
                 <div class="card-back" style="display:none"></div>
