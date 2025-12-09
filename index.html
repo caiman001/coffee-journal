@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V46 Elastic Fixed</title>
+    <title>BeanDance V47 Clean UI</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -43,7 +43,6 @@
             justify-content: center; align-items: center;
         }
 
-        /* --- 滚动区域 --- */
         .card-scroller {
             display: flex;
             gap: var(--gap);
@@ -51,31 +50,24 @@
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            
             position: absolute;
             top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
             transform: translateY(-50%);
-            
             align-items: center;
             padding: 0; 
-            
             will-change: scroll-position;
-            
-            /* 修复：默认虽然隐身，但添加过渡防止突变 */
             opacity: 0; 
             transition: opacity 0.8s ease-out;
         }
         .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
 
-        .card-scroller::before,
-        .card-scroller::after {
+        .card-scroller::before, .card-scroller::after {
             content: ''; display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
             width: calc(50vw - var(--card-width) / 2);
         }
 
-        /* --- 卡片容器 --- */
         .card-wrapper {
             position: relative;
             flex: 0 0 var(--card-width);
@@ -83,12 +75,11 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            transform: scale(0.9); /* 默认稍小 */
+            transform: scale(0.9);
             will-change: transform, opacity;
         }
         .card-wrapper.active { z-index: 100; }
 
-        /* --- 卡片本体 --- */
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -100,11 +91,10 @@
             position: absolute; width: 100%; height: 100%;
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
             border-radius: 40px; box-sizing: border-box;
-            background: #121212; /* 默认深色背景 */
+            background: #121212;
             box-shadow: var(--glass-shadow);
         }
 
-        /* 修复：流光特效增强，确保黑屏下也有轮廓 */
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
@@ -117,7 +107,6 @@
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg); }
         
-        /* 修复：添加默认背景渐变，防止图片加载失败黑乎乎 */
         .bg-placeholder {
             position: absolute; inset: 0;
             background: linear-gradient(180deg, #1e1e1e 0%, #000 100%);
@@ -146,7 +135,6 @@
         }
         .card-content input { pointer-events: auto; }
 
-        /* 品牌排版 */
         .app-brand-title-input {
             background: transparent; border: none; outline: none;
             font-family: inherit; width: 100%; text-align: center; padding: 0;
@@ -155,7 +143,6 @@
             background: linear-gradient(135deg, #fff 0%, #aaaaaa 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 4px 20px rgba(0,0,0,0.5); caret-color: #fff;
-            /* 修复：如果背景裁剪不支持，回退颜色 */
             color: white; 
         }
         .app-brand-author-input {
@@ -177,27 +164,40 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* --- 智能上传按钮 --- */
+        /* --- 智能上传按钮 (修改版) --- */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
-            background: rgba(0,0,0,0.2); border-radius: 50%; /* 增加可见性 */
-            backdrop-filter: blur(4px);
+            /* 1. 去掉背景阴影衬底 */
+            background: transparent; 
+            /* backdrop-filter: blur(4px);  <-- 去掉模糊 */
             display: flex; justify-content: center; align-items: center; z-index: 20;
             cursor: pointer; pointer-events: auto;
-            opacity: 0.6;
+            opacity: 0.8;
             transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
         .upload-btn svg { 
             stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+            /* 增加投影以保证在白色图片上的可见度 */
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9));
             transition: transform 0.2s ease;
         }
         
         .upload-btn:active svg { transform: scale(0.85); }
-        .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(0.8); pointer-events: none; }
-        .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); pointer-events: auto; }
+
+        /* 有图片时：完全透明，但保持 pointer-events: auto 以便接收点击 */
+        .card-wrapper.has-image .upload-btn { 
+            opacity: 0; 
+            transform: scale(0.8); 
+            pointer-events: auto; /* 关键：即使看不见也能点 */
+        }
+        
+        /* 激活显示时：不透明度恢复 */
+        .card-wrapper.has-image.reveal-icon .upload-btn { 
+            opacity: 1; 
+            transform: scale(1.1); 
+        }
 
         .card-back {
             transform: rotateY(180deg); z-index: 1;
@@ -299,7 +299,6 @@
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; font-weight: 600;
         }
         
-        /* Loading 状态指示 */
         .loading-screen {
             position: fixed; inset: 0; z-index: 0;
             display: flex; justify-content: center; align-items: center;
@@ -314,7 +313,6 @@
 
 <div class="app-container">
     <div class="card-scroller" id="scroller">
-        <!-- JS 动态填充 -->
     </div>
 </div>
 
@@ -324,7 +322,7 @@
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0;
     const METADATA_ID = -1;
-    const CARD_FULL_WIDTH = 384; // 360 + 24
+    const CARD_FULL_WIDTH = 384; 
     
     let db;
     let allCoffeesCache = [];
@@ -343,12 +341,7 @@
 
     function initDB() {
         return new Promise((resolve, reject) => {
-            // 兼容性检查
-            if (!window.indexedDB) {
-                console.warn("IndexedDB not supported");
-                return resolve(null); // 降级处理，不阻塞
-            }
-
+            if (!window.indexedDB) return resolve(null);
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onupgradeneeded = (e) => {
                 db = e.target.result;
@@ -357,10 +350,7 @@
                 }
             };
             request.onsuccess = (e) => { db = e.target.result; resolve(db); };
-            request.onerror = (e) => {
-                console.warn("IndexedDB Error (Possibly file://):", e);
-                resolve(null); // 出错也继续，避免黑屏
-            };
+            request.onerror = (e) => { resolve(null); };
         });
     }
 
@@ -376,7 +366,7 @@
     }
 
     function scheduleSave(key, fn) {
-        if (!db) return; // 没数据库不保存
+        if (!db) return; 
         if (debounceMap.has(key)) clearTimeout(debounceMap.get(key));
         const timer = setTimeout(() => {
             fn();
@@ -405,8 +395,6 @@
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
             const safeData = { ...data };
-            
-            // 简单处理：如果是特殊ID，先查再改；普通ID直接覆盖
             if (id === METADATA_ID || id === SEARCH_BG_ID) {
                 store.get(id).onsuccess = (e) => {
                     const record = e.target.result;
@@ -432,7 +420,6 @@
             newCoffee.id = e.target.result;
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
-            
             const addCard = document.querySelector('.card-add');
             if(addCard) {
                 addCard.querySelector('.add-menu').classList.remove('show');
@@ -542,25 +529,27 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // 处理图片上传/显示按钮
+            // --- 2. 优化后的上传按钮点击逻辑 ---
             if (t.closest('.upload-btn')) {
-                const btn = t.closest('.upload-btn');
-                // 如果已经有图片了，点按钮是 "Reveal" 还是 "Input"?
-                // 逻辑：如果有图片，点击按钮区域(透明) -> Reveal Icon
-                // Reveal 之后 -> 点击 input 触发上传
-                if (wrapper.classList.contains('has-image') && !wrapper.classList.contains('reveal-icon')) {
-                    e.preventDefault(); 
-                    wrapper.classList.add('reveal-icon');
-                    // 关闭其他
-                    document.querySelectorAll('.reveal-icon').forEach(el => {
-                        if(el !== wrapper) el.classList.remove('reveal-icon');
-                    });
-                    
-                    if (revealTimer) clearTimeout(revealTimer);
-                    revealTimer = setTimeout(() => wrapper.classList.remove('reveal-icon'), 3000);
-                    return;
+                // 如果已经有图片了
+                if (wrapper.classList.contains('has-image')) {
+                    // 如果图标还没显示（状态：隐形）
+                    if (!wrapper.classList.contains('reveal-icon')) {
+                        e.preventDefault(); // 阻止打开文件选择器
+                        
+                        // 显示所有图标（或者只显示当前，这里选择只显示当前更专注）
+                        wrapper.classList.add('reveal-icon');
+                        
+                        // 2秒后自动消失
+                        if (revealTimer) clearTimeout(revealTimer);
+                        revealTimer = setTimeout(() => {
+                            wrapper.classList.remove('reveal-icon');
+                        }, 2000); // 2秒
+                    } else {
+                        // 如果图标已经是显示状态，什么都不做，让默认行为(打开文件)发生
+                        // 这时候点击 input 会正常弹出
+                    }
                 }
-                // 否则允许 input 点击事件穿透
                 return; 
             }
 
@@ -579,7 +568,6 @@
 
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
-                // 点击卡片翻转
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
@@ -620,14 +608,10 @@
 
     async function initApp() {
         try {
-            console.log("Starting App...");
-            await initDB(); // 如果失败返回null
-            
+            await initDB(); 
             const allData = await getAllCoffees();
-            
             const meta = allData.find(c => c.id === METADATA_ID);
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
-            
             const searchData = allData.find(c => c.id === SEARCH_BG_ID);
             allCoffeesCache = allData.filter(c => c.id > 0);
             
@@ -636,17 +620,13 @@
             allCoffeesCache.forEach(c => renderSingleCard(c));
             renderAddButton();
 
-            // 布局修正
             if (allCoffeesCache.length >= 0) {
-                scroller.scrollLeft = CARD_FULL_WIDTH - 20; // 稍微偏移一点
+                scroller.scrollLeft = CARD_FULL_WIDTH - 20; 
             }
             
             setupDelegation();
-            
-            // 启动动画循环
             requestAnimationFrame(animateCards);
 
-            // 移除 Loading，显示 Scroller
             setTimeout(() => {
                 document.getElementById('loadingText').style.display = 'none';
                 scroller.classList.add('visible');
@@ -654,8 +634,6 @@
 
         } catch (e) {
             console.error("Init Failed:", e);
-            document.getElementById('loadingText').innerText = "ERROR STARTING APP";
-            alert("App failed to start. Check console.");
         }
     }
 
@@ -667,7 +645,6 @@
             const data = allCoffeesCache.find(c => c.id === id);
             if(data) {
                 const match = !lower || (data.name && data.name.toLowerCase().includes(lower));
-                // 使用 opacity 而不是 display:none 以保持布局平滑
                 card.style.display = match ? 'block' : 'none';
             }
         });
@@ -742,7 +719,6 @@
         
         if (isInsert) {
             scroller.insertBefore(wrapper, document.getElementById('add-card-wrapper'));
-            // 稍等布局刷新后滚动
             requestAnimationFrame(() => wrapper.scrollIntoView({behavior:'smooth', inline:'center'}));
         } else {
             scroller.appendChild(wrapper);
@@ -779,13 +755,11 @@
             if (card.style.display === 'none') continue;
 
             const rect = card.getBoundingClientRect();
-            // 简单剔除屏幕外的计算
             if (rect.right < 0 || rect.left > window.innerWidth) continue;
 
             const cardCenter = rect.left + rect.width / 2;
             const dist = Math.abs(center - cardCenter);
             
-            // 搜索卡片特殊缩放逻辑
             if (card.id === 'search-wrapper') {
                 if (dist > 50) {
                     const r = Math.min((dist - 50) / 350, 1);
@@ -798,16 +772,14 @@
                 continue;
             }
 
-            // 普通卡片逻辑
             if (dist < 300) {
                 const r = dist / 300;
                 const scale = 1 - r * 0.1;
                 card.style.transform = `scale(${scale})`;
-                card.style.opacity = 1 - r * 0.3; // 稍微淡一点
+                card.style.opacity = 1 - r * 0.3; 
                 
                 if (dist < 150) {
                     card.classList.add('active');
-                    // 只有在非常中心的时候才完全不透明
                     card.style.opacity = 1;
                 } else {
                     card.classList.remove('active');
@@ -822,7 +794,6 @@
         requestAnimationFrame(animateCards);
     }
 
-    // 关键修复：页面加载完成后执行初始化
     window.addEventListener('DOMContentLoaded', initApp);
 
 </script>
