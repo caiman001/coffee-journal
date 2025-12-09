@@ -383,9 +383,9 @@
 
 <script>
     /* 
-       BeanDance V69 - iPad Pro Logic & Performance Final Fix
-       1. Icon Logic: Strict state machine (Wake -> Action -> AutoHide)
-       2. Performance: Lazy animation loop + GPU Memory Management
+       BeanDance V70 - The Logic Rewrite
+       1. Interaction: Switched from <label> to <div> for 100% JS control over File Input.
+       2. Performance: Optimized Layer compositing strategies for iPad Pro.
     */
     
     const DB_NAME = 'BeanDance_V46_Stable'; 
@@ -402,7 +402,7 @@
     let debounceMap = new Map();
     let revealTimer = null; 
     let menuTimer; 
-    let lastScrollLeft = -1; // 用于性能优化的缓存变量
+    let lastScrollLeft = -1; 
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
@@ -410,12 +410,15 @@
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
 
-    // --- [性能优化] 动态样式注入 ---
-    // 核心策略：
-    // 1. 非 Active 卡片：彻底隐藏流光层 (display: none)，减少 90% 的重绘压力。
-    // 2. Active 卡片：才开启 GPU 独立图层 (will-change)。
+    // --- [性能优化] 样式注入 ---
+    // 策略调整：
+    // 1. .card-wrapper 全局开启 transform 硬件加速，避免滚动时图层重建。
+    // 2. 仅对 .active 卡片显示伪元素(流光边框)，大幅降低 GPU 负载。
     const style = document.createElement('style');
     style.innerHTML = `
+        .card-wrapper {
+            will-change: transform; /* 常驻 GPU 层，避免闪烁 */
+        }
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
             animation: none !important;
@@ -425,10 +428,6 @@
         .card-wrapper.active .card-front::after {
             display: block !important;
             content: '' !important;
-        }
-        /* 仅对中心卡片开启硬件加速 */
-        .card-wrapper.active {
-            will-change: transform, opacity;
         }
     `;
     document.head.appendChild(style);
@@ -615,7 +614,6 @@
         document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
     }
 
-    // --- [性能优化] 图片降维 ---
     function processImage(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -626,9 +624,7 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    // 优化：从 800 降至 640。
-                    // iPad Pro 11寸卡片宽度约为 360px，2x 屏需要 720px 左右。
-                    // 640px 是视觉质量与显存占用的黄金平衡点，能显著减少滑动掉帧。
+                    // 保持 640px 优化配置
                     const maxDim = 640; 
                     let w = img.width, h = img.height;
                     if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
@@ -701,7 +697,6 @@
         }
     });
 
-    // --- Touch & Scroll Logic ---
     let touchStartX = 0;
     let touchStartY = 0;
     scroller.addEventListener('touchstart', e => {
@@ -718,53 +713,49 @@
     });
     searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // --- 核心交互逻辑修复 (Strict State Machine) ---
+    // --- 核心修复：Strict Interaction Logic ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
+
+            // [安全检查]：如果事件源是 Input 本身（通常是 JS 触发的），直接忽略，防止递归或逻辑冲突
+            if (t.tagName === 'INPUT' && t.type === 'file') return;
             
-            // 1. Upload Icon Logic - 针对需求的一对一实现
+            // 1. Upload Icon Logic (Using DIV control)
             const uploadBtn = t.closest('.upload-btn');
-            
             if (uploadBtn) {
-                // [关键] 防止点击按钮导致卡片翻转
+                // 阻止冒泡，防止卡片翻转
                 e.stopPropagation();
 
                 const wrapper = uploadBtn.closest('.card-wrapper');
                 const hasImage = wrapper.classList.contains('has-image');
                 const isRevealed = wrapper.classList.contains('reveal-icon');
+                
+                // 获取内部真正的 Input
+                const fileInput = uploadBtn.querySelector('input');
 
-                // 场景 A: 无图 -> 需求：常在，点击直接选图
+                // 场景 A: 无图 -> 直接触发 Input 点击
                 if (!hasImage) {
-                    // 放行：让 <label> 默认触发内部 <input> 的 click
+                    if(fileInput) fileInput.click();
                     return; 
                 }
 
                 // 场景 B: 有图
                 if (hasImage) {
                     if (isRevealed) {
-                        // 场景 B2: 已唤醒 (处于 3s 窗口期) -> 再次点击
-                        // 需求：进行换图
-                        // 逻辑：放行 (return)，并重置计时器 (保持体验连贯)
+                        // 场景 B2: 已唤醒 -> 点击 -> 触发 Input (换图)
+                        if(fileInput) fileInput.click();
                         
-                        // 清除旧计时器
+                        // 重置 3s 倒计时 (让图标在用户回来后保持显示一会儿)
                         if (revealTimer) clearTimeout(revealTimer);
-                        // 设置新计时器：如果用户点开了文件框但没选，回来后 icon 还能保留 3s
                         revealTimer = setTimeout(() => {
                             wrapper.classList.remove('reveal-icon');
                             revealTimer = null;
                         }, 3000);
-
-                        return; 
                     } else {
-                        // 场景 B1: 未唤醒 (图标隐藏) -> 首次点击
-                        // 需求：唤醒图标，显示 3s
-                        // 逻辑：拦截默认行为 (preventDefault)，不让 input 打开
-                        e.preventDefault(); 
-                        
-                        // 状态管理
-                        hideAllIcons(); // 关掉别的
-                        wrapper.classList.add('reveal-icon'); // 显示自己的
+                        // 场景 B1: 未唤醒 -> 点击 -> 仅显示图标
+                        hideAllIcons(); // 清理其他
+                        wrapper.classList.add('reveal-icon'); // 显示当前
                         
                         // 3s 倒计时
                         if (revealTimer) clearTimeout(revealTimer);
@@ -772,13 +763,13 @@
                             wrapper.classList.remove('reveal-icon');
                             revealTimer = null;
                         }, 3000);
-                        
-                        return;
                     }
+                    return;
                 }
             }
 
             // 2. Global Cleanup
+            // 点击任何非 Input 区域，清理图标状态
             if (!t.closest('input')) {
                 hideAllIcons();
             }
@@ -816,7 +807,6 @@
             }
             if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
-            // 翻转逻辑 (已通过 stopPropagation 保护上传按钮)
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
                 
@@ -825,7 +815,6 @@
             }
         });
 
-        // Input Handling
         scroller.addEventListener('focusout', (e) => {
             const input = e.target;
             if (input.tagName === 'INPUT') {
@@ -868,7 +857,7 @@
         });
     }
 
-    // --- Initialization & Render ---
+    // --- Initialization & Render (Modified for <div class="upload-btn">) ---
     async function initApp() {
         try {
             await initDB(); 
@@ -896,6 +885,7 @@
         }
     }
 
+    // 修改：将 label 改为 div，彻底切断默认行为
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -910,7 +900,7 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <div class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></div>
                     <div class="bg-placeholder"></div>
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -936,7 +926,7 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <div class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></div>
                     <div class="bg-placeholder"></div>
                     <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -988,7 +978,6 @@
         scroller.appendChild(wrapper);
     }
 
-    // --- [性能优化] 惰性计算循环 ---
     function animateCards() {
         if(!scroller) {
             requestAnimationFrame(animateCards);
@@ -997,8 +986,6 @@
 
         const scrollLeft = scroller.scrollLeft;
         
-        // 核心优化：如果滚动位置没变（且不是初始加载），跳过所有 DOM 计算
-        // 这能大幅降低静止状态下的 CPU/GPU 占用
         if (scrollLeft === lastScrollLeft) {
             requestAnimationFrame(animateCards);
             return;
@@ -1008,7 +995,6 @@
         const wrappers = scroller.children;
         const viewportWidth = window.innerWidth;
         const center = viewportWidth / 2;
-        
         const itemWidth = 384; 
         const halfCard = 180; 
         const startOffset = (viewportWidth - 360) / 2; 
@@ -1028,7 +1014,6 @@
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
-            // 仅当数值显著变化时才写入 DOM（浏览器通常会自己优化，但这里显式控制更稳）
             card.style.transform = `scale(${scale})`;
             card.style.opacity = opacity;
 
