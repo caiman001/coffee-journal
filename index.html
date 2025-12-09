@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V63 Ultra Silk</title>
+    <title>BeanDance V64 Final</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -43,24 +43,20 @@
             justify-content: center; align-items: center;
         }
 
-        /* --- 搜索覆盖层 (动画优化) --- */
+        /* 搜索覆盖层 */
         .search-overlay {
             position: fixed; inset: 0; z-index: 200;
             background: rgba(0,0,0,0.85);
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             display: flex; flex-direction: column; align-items: center; padding-top: 140px;
-            
-            opacity: 0; 
-            visibility: hidden;
-            transform: scale(1.1); /* 初始略微放大 */
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* 丝滑曲线 */
+            opacity: 0; visibility: hidden;
+            transform: scale(1.1);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             pointer-events: none;
         }
         .search-overlay.active { 
-            opacity: 1; 
-            visibility: visible;
-            transform: scale(1); /* 还原 */
-            pointer-events: auto; 
+            opacity: 1; visibility: visible;
+            transform: scale(1); pointer-events: auto; 
         }
         
         .search-input-large {
@@ -81,7 +77,7 @@
         }
         .search-overlay.active .search-hint { opacity: 1; }
 
-        /* --- 滚动区域 --- */
+        /* 滚动区域 */
         .card-scroller {
             display: flex;
             gap: var(--gap);
@@ -132,8 +128,7 @@
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
             border-radius: 40px; box-sizing: border-box;
             box-shadow: var(--glass-shadow);
-            
-            /* --- 视觉优化：深色微渐变，替代纯黑 --- */
+            /* 深色微渐变背景 */
             background: linear-gradient(160deg, #1a1a1a 0%, #050505 100%);
         }
 
@@ -149,7 +144,6 @@
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg) translateZ(0); }
         
-        /* 物理防白边：放大至 102% */
         .bg-image { 
             position: absolute; 
             top: -1%; left: -1%; width: 102%; height: 102%; 
@@ -370,7 +364,7 @@
     const DB_NAME = 'BeanDance_V46_Stable'; 
     const DB_VERSION = 1; 
     const STORE_NAME = 'coffees';
-    const SEARCH_BG_ID = 0; // 其实是首页 ID
+    const SEARCH_BG_ID = 0; 
     const METADATA_ID = -1;
     const CARD_FULL_WIDTH = 384; 
     
@@ -379,7 +373,6 @@
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    // 状态管理优化
     let revealTimer = null;
     let revealWrapper = null;
     let menuTimer; 
@@ -577,9 +570,7 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
-        
-        // --- 核心修复：上传成功后，强制清理状态 ---
-        hideAllIcons(); // 统一清理函数
+        hideAllIcons(); // 统一清理状态
         
         const img = wrapper.querySelector('.bg-image');
         if(img) {
@@ -590,7 +581,7 @@
         }
     }
 
-    // 辅助函数：统一关闭所有图标并重置定时器
+    // --- 核心修复：统一的状态清理函数 ---
     function hideAllIcons() {
         if (revealTimer) {
             clearTimeout(revealTimer);
@@ -694,17 +685,21 @@
 
     // 手势侦测优化
     let touchStartX = 0;
+    let touchStartY = 0;
+    
     scroller.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
     });
     
-    // 使用 touchend 处理，防止 scroll 冲突，体验更自然
     scroller.addEventListener('touchend', e => {
         const touchEndX = e.changedTouches[0].clientX;
-        const diff = touchEndX - touchStartX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
         
-        // 逻辑：在最左边，且向右滑动距离够大 (手指从左往右划，查看左侧内容)
-        if (scroller.scrollLeft < 5 && diff > 60) {
+        // 逻辑：在最左边(scrollLeft < 40)，水平滑动距离 > 50，且水平幅度大于垂直幅度（防误触）
+        if (scroller.scrollLeft < 40 && diffX > 50 && Math.abs(diffX) > Math.abs(diffY)) {
             activateSearch();
         }
     });
@@ -723,6 +718,7 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
+            // --- Add Card 逻辑 ---
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -748,7 +744,7 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
-            // --- Upload Icon 逻辑 ---
+            // --- 核心修复：Upload Icon 逻辑 ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
                 const fileInput = uploadBtn.querySelector('input[type="file"]');
@@ -758,17 +754,18 @@
                     e.preventDefault(); 
                     e.stopPropagation();
 
-                    // 场景A：同一张卡，且图标已显示 -> 重置计时器并放行
+                    // 场景A：同一张卡，且图标已显示 -> 清除所有倒计时，保持常亮，并放行
                     if (revealWrapper === wrapper && wrapper.classList.contains('reveal-icon')) {
-                        if (revealTimer) clearTimeout(revealTimer);
-                        // 续命 2s
-                        revealTimer = setTimeout(() => hideAllIcons(), 2000);
+                        if (revealTimer) {
+                            clearTimeout(revealTimer);
+                            revealTimer = null;
+                        }
                         fileInput.click(); 
                         return;
                     }
 
                     // 场景B：第一次点击 或 切换卡片 -> 统一清理旧状态 -> 显示新状态
-                    hideAllIcons(); // 关键：清理所有旧状态
+                    hideAllIcons(); // 清理旧卡
 
                     wrapper.classList.add('reveal-icon');
                     revealWrapper = wrapper;
@@ -790,6 +787,7 @@
             if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
             if (!t.closest('.card-back')) {
+                // 点击卡片翻转
                 if (wrapper.id === 'search-wrapper') return;
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
@@ -970,6 +968,7 @@
         scroller.appendChild(wrapper);
     }
 
+    // --- 核心优化：统一的动画计算 (消除首页卡顿) ---
     function animateCards() {
         const wrappers = scroller.children;
         const scrollLeft = scroller.scrollLeft;
@@ -992,19 +991,7 @@
             const dist = Math.abs(center - cardCenterX);
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
-            if (card.id === 'search-wrapper') {
-                if (dist > 50) {
-                    const scale = Math.max(0.85, 1 - Math.pow(normalizedDist * 0.5, 1.5));
-                    const opacity = Math.max(0, 1 - Math.pow(normalizedDist * 0.8, 1.2));
-                    card.style.transform = `scale(${scale})`;
-                    card.style.opacity = opacity;
-                } else {
-                    card.style.transform = 'scale(1)';
-                    card.style.opacity = 1;
-                }
-                continue;
-            }
-
+            // --- 所有卡片使用完全相同的数学模型 ---
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
