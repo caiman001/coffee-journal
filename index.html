@@ -2,31 +2,18 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 针对 iPad Pro 11寸及其他移动设备的视口设置 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <!-- PWA 设置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <!-- *** 图标适配设置 (请确保 icon.png 在同级目录) *** -->
-    <!-- 浏览器标签页图标 -->
-    <link rel="shortcut icon" href="icon.png" type="image/png">
-    <!-- iOS/iPad 主屏幕图标 (自动适配 iPad Pro 11寸及其他尺寸) -->
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="icon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
-    <link rel="apple-touch-icon" sizes="167x167" href="icon.png">
-
-    <title>BeanDance V93 Icon Update</title>
+    <title>BeanDance V100 Fail-Safe</title>
     <style>
         :root {
             --bg-color: #000000;
             --card-width: 360px;
             --card-height: 580px;
             --gap: 24px;
-            
             --glass-bg: rgba(28, 28, 30, 0.85);
             --glass-shadow: 0 40px 80px -10px rgba(0,0,0,0.9);
         }
@@ -64,14 +51,10 @@
             opacity: 0; visibility: hidden; pointer-events: none;
             transition: opacity 0.3s ease;
         }
-        
-        .search-overlay.active { 
-            opacity: 1; visibility: visible; pointer-events: auto; 
-        }
+        .search-overlay.active { opacity: 1; visibility: visible; pointer-events: auto; }
 
         .search-capsule {
-            width: var(--card-width);
-            height: 60px;
+            width: var(--card-width); height: 60px;
             background: rgba(40, 40, 40, 0.6);
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(255,255,255,0.15);
@@ -81,47 +64,32 @@
             transform: translateY(-120%);
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        
-        .search-overlay.active .search-capsule {
-            transform: translateY(0);
-        }
+        .search-overlay.active .search-capsule { transform: translateY(0); }
 
-        .search-icon {
-            width: 20px; height: 20px;
-            stroke: rgba(255,255,255,0.6);
-            margin-left: 20px; margin-right: 10px;
-        }
-
+        .search-icon { width: 20px; height: 20px; stroke: rgba(255,255,255,0.6); margin-left: 20px; margin-right: 10px; }
         .search-input-box {
-            flex: 1; height: 100%;
-            background: transparent; border: none; outline: none;
-            color: white; font-size: 20px; font-weight: 500;
-            padding-right: 20px;
-            font-family: inherit;
-            caret-color: #D4A373;
+            flex: 1; height: 100%; background: transparent; border: none; outline: none;
+            color: white; font-size: 20px; font-weight: 500; padding-right: 20px;
+            font-family: inherit; caret-color: #D4A373;
         }
         .search-input-box::placeholder { color: transparent; }
 
-        /* 滚动区域 */
+        /* --- 核心滚动区 --- */
         .card-scroller {
-            display: flex;
-            gap: var(--gap);
+            display: flex; gap: var(--gap);
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            position: absolute;
-            top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
+            position: absolute; top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
             transform: translateY(-50%) translateZ(0);
-            align-items: center;
-            padding: 0; 
-            opacity: 0; 
-            transition: opacity 0.6s ease-out;
-            will-change: opacity, scroll-position;
+            align-items: center; padding: 0; 
+            opacity: 0; transition: opacity 0.6s ease-out;
+            overscroll-behavior-x: contain;
+            touch-action: pan-x;
         }
         .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
-
         .card-scroller::before, .card-scroller::after {
             content: ''; display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
@@ -135,9 +103,7 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            will-change: transform, opacity;
-            transform: scale(0.88);
-            opacity: 0.4;
+            will-change: transform; 
         }
         .card-wrapper.active { z-index: 100; }
 
@@ -156,13 +122,8 @@
             background: linear-gradient(160deg, #1a1a1a 0%, #050505 100%);
         }
 
-        /* 优化：仅 Active 卡片显示流光，减少 GPU 压力 */
-        .card-wrapper:not(.active) .card-front::after,
-        .card-wrapper:not(.active) .card-back::after {
-            animation: none; display: none;
-        }
-
-        .card-front::after, .card-back::after {
+        .card-wrapper:not(.active) .card-front::after { display: none; }
+        .card-front::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -175,23 +136,40 @@
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg) translateZ(0); }
         
         .bg-image { 
-            position: absolute; 
-            top: -1%; left: -1%; width: 102%; height: 102%; 
-            object-fit: cover; 
-            transition: opacity 0.5s ease; 
-            background-color: #000; 
-            z-index: 1;
-            will-change: transform;
-            -webkit-backface-visibility: hidden;
+            position: absolute; top: -1%; left: -1%; width: 102%; height: 102%; 
+            object-fit: cover; transition: opacity 0.5s ease; 
+            background-color: #000; z-index: 1;
         }
-        
         .overlay-gradient {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.95) 100%);
-            z-index: 2; pointer-events: none;
-            transform: scale(1.02); 
-            transform-origin: bottom center;
+            z-index: 2; pointer-events: none; transform: scale(1.02); transform-origin: bottom center;
         }
+
+        /* --- 上传按钮 (原生空白帧方案) --- */
+        .upload-btn {
+            position: absolute; top: 24px; right: 24px; 
+            width: 50px; height: 50px; 
+            background: rgba(255,255,255,0.01); 
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 200; cursor: pointer; pointer-events: auto;
+            transition: transform 0.2s ease;
+        }
+        .upload-btn input {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); border: 0;
+        }
+        .upload-btn svg { 
+            stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9));
+            pointer-events: none; 
+            transition: opacity 0.3s ease; opacity: 1;
+        }
+        .upload-btn:active { transform: scale(0.9); }
+
+        .card-wrapper.has-image .upload-btn { background: rgba(255,255,255,0.001); }
+        .card-wrapper.has-image .upload-btn svg { opacity: 0; }
+        .card-wrapper.has-image .upload-btn:active svg { opacity: 0.5; }
 
         .card-content {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
@@ -201,118 +179,68 @@
         }
         .card-content input { pointer-events: auto; }
 
-        .app-brand-title-input {
+        .app-brand-title-input, .app-brand-author-input {
             background: transparent; border: none; outline: none;
             font-family: inherit; width: 100%; text-align: center; padding: 0;
-            font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px;
-            margin: 0; 
-            background: linear-gradient(135deg, #fff 0%, #aaaaaa 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.5); caret-color: #fff;
-            color: white; 
-        }
-        .app-brand-author-input {
-            background: transparent; border: none; outline: none;
-            font-family: inherit; width: 100%; text-align: center; padding: 0;
-            font-size: 10px; font-weight: 600; letter-spacing: 6px; 
-            text-transform: uppercase; color: rgba(255,255,255,0.5);
-            margin: 4px 0 0 0; 
             caret-color: #fff;
         }
-
+        .app-brand-title-input {
+            font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px;
+            background: linear-gradient(135deg, #fff 0%, #aaaaaa 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .app-brand-author-input {
+            font-size: 10px; font-weight: 600; letter-spacing: 6px; 
+            text-transform: uppercase; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;
+        }
         .card-content h2 { 
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
-            line-height: 1.1; letter-spacing: -0.5px;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            line-height: 1.1; letter-spacing: -0.5px; text-shadow: 0 4px 20px rgba(0,0,0,0.8);
         }
         .card-content p { 
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* --- 上传按钮优化 --- */
-        .upload-btn {
-            position: absolute; top: 24px; right: 24px; 
-            width: 50px; height: 50px; 
-            background: transparent;
-            display: flex; justify-content: center; align-items: center; z-index: 20;
-            cursor: pointer; pointer-events: auto;
-            transition: transform 0.2s ease;
-        }
-        
-        .upload-btn svg { 
-            stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
-            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9));
-            pointer-events: none; 
-            transition: opacity 0.3s ease;
-            opacity: 1; /* 默认显示 */
-        }
-
-        .upload-btn:active { transform: scale(0.9); }
-
-        /* 有图时：
-           1. 容器：背景设为极低透明度白色 (Safari Hack)，保证可点击
-           2. 图标：透明度设为 0，隐藏
-        */
-        .card-wrapper.has-image .upload-btn { 
-            background: rgba(255,255,255,0.001); 
-        }
-        .card-wrapper.has-image .upload-btn svg { 
-            opacity: 0; 
-        }
-        
-        .card-wrapper.has-image .upload-btn:active svg {
-            opacity: 0.5;
-        }
-
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
             backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%);
-            padding: 50px 30px; 
-            display: flex; flex-direction: column; color: white;
+            padding: 50px 30px; display: flex; flex-direction: column; color: white;
             border: 1px solid rgba(255,255,255,0.1);
         }
-
         .title-input-group {
-            margin-bottom: 30px; text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);
             padding-bottom: 15px; display: flex; align-items: center; justify-content: center; min-height: 40px; 
         }
         .title-input {
-            width: 100%; background: transparent; border: none;
-            font-size: 24px; font-weight: 700; color: white; text-align: center;
-            outline: none; font-family: inherit; line-height: 1.2; padding: 0; margin: 0;
+            width: 100%; background: transparent; border: none; font-size: 24px; font-weight: 700; color: white; 
+            text-align: center; outline: none; font-family: inherit; line-height: 1.2; padding: 0; margin: 0;
         }
-        .title-input::placeholder { color: rgba(255,255,255,0.3); }
-
         .data-list { display: flex; flex-direction: column; gap: 0; width: 100%; margin-bottom: 20px; }
         .data-row {
             display: flex; justify-content: space-between; align-items: center;
             padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.08); height: 24px;
         }
-        .data-label { font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px; }
+        .data-label { font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; }
         .data-value-group { display: flex; align-items: center; justify-content: flex-end; width: 140px; }
         .data-input {
             flex: 1; background: transparent; border: none; text-align: right; 
             color: white; font-size: 20px; font-weight: 600; outline: none; 
             font-family: "SF Pro Display", -apple-system, sans-serif; font-variant-numeric: tabular-nums; 
-            padding: 0; margin: 0;
         }
         .data-unit {
             font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
-            width: 25px; text-align: right; padding-left: 0; margin-left: 5px; flex-shrink: 0; 
+            width: 25px; text-align: right; margin-left: 5px; flex-shrink: 0; 
         }
-
         .action-row { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
         .btn-text { 
             background: rgba(255,255,255,0.08); border: none; color: white; 
             padding: 12px 24px; border-radius: 24px; font-size: 13px; font-weight: 500; cursor: pointer; 
             backdrop-filter: blur(10px); transition: background 0.2s;
         }
-        .btn-text:active { background: rgba(255,255,255,0.15); }
         .btn-delete { background: rgba(255, 69, 58, 0.1); color: #FF453A; }
-        .btn-delete:active { background: rgba(255, 69, 58, 0.2); }
 
         .card-add {
             background: rgba(255,255,255,0.02); position: relative;
@@ -323,54 +251,33 @@
             content: ''; position: absolute; inset: 0; border-radius: 40px;
             border: 1px dashed rgba(255,255,255,0.2); pointer-events: none;
         }
-        .card-add:active { background: rgba(255,255,255,0.05); }
-        
         .add-icon { 
-            font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; pointer-events: none;
-            transition: opacity 0.3s;
+            font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; 
+            transition: opacity 0.3s; pointer-events: none;
         }
-        .card-add.active .add-icon { opacity: 0; display: none; }
-
+        .card-add.active .add-icon { opacity: 0; }
         .add-roast-group {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: flex; flex-direction: column; gap: 12px; width: 60%;
-            z-index: 20; 
-            visibility: hidden; opacity: 0; 
-            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+            visibility: hidden; opacity: 0; transition: opacity 0.3s ease, visibility 0s linear 0.3s; z-index: 20;
         }
-        .card-add.active .add-roast-group { 
-            visibility: visible; opacity: 1; 
-            transition: opacity 0.3s ease, visibility 0s;
-        }
-
+        .card-add.active .add-roast-group { visibility: visible; opacity: 1; transition: opacity 0.3s ease, visibility 0s; }
         .add-menu-btn {
             background: rgba(255,255,255,0.08); padding: 16px; border-radius: 16px;
             text-align: center; color: white; font-weight: 600; font-size: 14px;
             backdrop-filter: blur(10px); cursor: pointer; border: 1px solid rgba(255,255,255,0.05);
-            transition: background 0.2s;
         }
-        .add-menu-btn:active { background: rgba(255,255,255,0.15); }
-        
         .add-io-group {
             position: absolute; bottom: 30px; left: 0; width: 100%;
-            display: flex; justify-content: center; gap: 20px;
-            z-index: 30; 
-            visibility: hidden; opacity: 0;
-            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+            display: flex; justify-content: center; gap: 20px; z-index: 30; 
+            visibility: hidden; opacity: 0; transition: opacity 0.3s ease, visibility 0s linear 0.3s;
         }
-        .card-add.active .add-io-group { 
-            visibility: visible; opacity: 1; 
-            transition: opacity 0.3s ease, visibility 0s;
-        }
-
+        .card-add.active .add-io-group { visibility: visible; opacity: 1; transition: opacity 0.3s ease, visibility 0s; }
         .btn-io {
             font-size: 11px; font-weight: 700; letter-spacing: 1px;
             color: rgba(255,255,255,0.3); padding: 8px 12px;
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-            cursor: pointer; transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer;
         }
-        .btn-io:active { color: white; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05); }
-
         .opt-light { color: #ffe0b2; }
         .opt-medium { color: #ffccbc; }
         .opt-dark { color: #d7ccc8; }
@@ -381,13 +288,10 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 500; font-weight: 600;
         }
-        
         .loading-screen {
-            position: fixed; inset: 0; z-index: 1000;
-            background: #000;
+            position: fixed; inset: 0; z-index: 1000; background: #000;
             display: flex; justify-content: center; align-items: center;
-            color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 2px;
-            transition: opacity 0.3s;
+            color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 2px; transition: opacity 0.3s;
         }
     </style>
 </head>
@@ -404,13 +308,13 @@
 <div class="status-toast" id="statusToast">SAVED</div>
 
 <div class="app-container">
-    <div class="card-scroller" id="scroller">
-    </div>
+    <div class="card-scroller" id="scroller"></div>
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V92_Stable'; // 版本升级，确保数据重置
-    const DB_VERSION = 2; 
+    // 强制升级版本，清除所有潜在的死锁数据
+    const DB_NAME = 'BeanDance_V100_FailSafe'; 
+    const DB_VERSION = 4; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0; 
     const METADATA_ID = -1;
@@ -428,7 +332,17 @@
     const loader = document.getElementById('loadingText');
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
-    const searchCapsule = document.getElementById('searchCapsule');
+
+    // --- 强制熔断机制：防止永久黑屏 ---
+    // 3秒后无论发生什么，都强制移除 Loading 界面
+    setTimeout(() => {
+        if (loader && loader.style.display !== 'none') {
+            console.warn('Force booting application...');
+            loader.style.opacity = '0';
+            setTimeout(() => { loader.style.display = 'none'; }, 300);
+            if (scroller) scroller.classList.add('visible');
+        }
+    }, 3000);
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -436,6 +350,7 @@
         setTimeout(() => toast.style.opacity = '0', 2000);
     }
 
+    // [修复] 健壮的 DB 初始化，带超时控制
     function initDB() {
         const dbPromise = new Promise((resolve) => {
             if (!window.indexedDB) return resolve(null);
@@ -447,23 +362,41 @@
                         db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
                     }
                 };
-                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
-                request.onerror = () => resolve(null); 
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onerror = () => resolve(null);
                 request.onblocked = () => resolve(null);
-            } catch (e) { resolve(null); }
+            } catch (e) {
+                console.error('DB Open Error', e);
+                resolve(null);
+            }
         });
+
+        // 1秒超时，超时则降级为内存模式
         const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1000));
         return Promise.race([dbPromise, timeoutPromise]);
     }
 
+    // [修复] 健壮的 getAll，带超时控制
     function getAllCoffees() {
-        return new Promise((resolve) => {
+        const fetchPromise = new Promise((resolve) => {
             if (!db) return resolve([]);
             try {
                 const tx = db.transaction(STORE_NAME, 'readonly');
-                tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result);
-            } catch(e) { resolve([]); }
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.getAll();
+                req.onsuccess = (e) => resolve(e.target.result || []);
+                req.onerror = () => resolve([]);
+                tx.onabort = () => resolve([]);
+            } catch (e) {
+                resolve([]);
+            }
         });
+        // 1秒超时
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve([]), 1000));
+        return Promise.race([fetchPromise, timeoutPromise]);
     }
 
     function scheduleSave(key, fn) {
@@ -518,33 +451,48 @@
         } catch(e) { console.error(e); }
     }
 
-    async function addCoffee(roast, overrideData = null) {
-        // 创建新对象
-        let newCoffee = overrideData || {
-            name: 'New Coffee', 
-            powder: '18', liquid: '36', time: '25', grind: '2.0', 
-            roast: roast || 'medium', imageData: null, created: Date.now()
-        };
-        
-        if(overrideData) delete newCoffee.id;
+    // [修复] 健壮的 addCoffee，带超时控制
+    function addCoffee(roast, overrideData = null) {
+        const addPromise = new Promise((resolve) => {
+            let newCoffee = overrideData || {
+                name: 'New Coffee', 
+                powder: '18', liquid: '36', time: '25', grind: '2.0', 
+                roast: roast || 'medium', imageData: null, created: Date.now()
+            };
+            
+            if(overrideData) delete newCoffee.id;
 
-        if (!db) { 
-            newCoffee.id = Date.now();
-            allCoffeesCache.push(newCoffee);
-            renderSingleCard(newCoffee, true);
-            resetAddMenu();
-            return;
-        }
+            if (!db) {
+                newCoffee.id = Date.now();
+                allCoffeesCache.push(newCoffee);
+                renderSingleCard(newCoffee, true);
+                if(!overrideData) resetAddMenu();
+                resolve();
+                return;
+            }
 
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        
-        store.add(newCoffee).onsuccess = (e) => {
-            newCoffee.id = e.target.result;
-            allCoffeesCache.push(newCoffee);
-            renderSingleCard(newCoffee, true);
-            if(!overrideData) resetAddMenu();
-        };
+            try {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.add(newCoffee);
+                
+                req.onsuccess = (e) => {
+                    newCoffee.id = e.target.result;
+                    allCoffeesCache.push(newCoffee);
+                    renderSingleCard(newCoffee, true);
+                    if(!overrideData) resetAddMenu();
+                    resolve();
+                };
+                req.onerror = () => resolve();
+                tx.onabort = () => resolve();
+            } catch (e) {
+                resolve();
+            }
+        });
+
+        // 1秒超时，防止死锁
+        const timeoutPromise = new Promise(resolve => setTimeout(resolve, 1000));
+        return Promise.race([addPromise, timeoutPromise]);
     }
 
     function resetAddMenu() {
@@ -555,24 +503,15 @@
         }
     }
 
-    async function deleteCard(id) {
-        if(!db) { 
+    function deleteCard(id) {
+        if (confirm('Delete?')) {
+            if(db) {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).delete(id);
+            }
             allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
             removeCardDOM(id);
-            return;
         }
-
-        const key = `coffee-${id}`;
-        if (debounceMap.has(key)) {
-            clearTimeout(debounceMap.get(key).timer);
-            debounceMap.delete(key);
-        }
-
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
-            allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
-            removeCardDOM(id);
-        };
     }
 
     function removeCardDOM(id) {
@@ -612,7 +551,6 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
-        
         const img = wrapper.querySelector('.bg-image');
         if(img) {
             if(img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
@@ -632,7 +570,7 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const maxDim = 1200; 
+                    const maxDim = 640; 
                     let w = img.width, h = img.height;
                     if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
                     else { if (h > maxDim) { w *= maxDim/h; h = maxDim; } }
@@ -651,16 +589,11 @@
             const { imageData, ...rest } = c; 
             return rest;
         });
-        const jsonStr = JSON.stringify(cleanData, null, 2);
-        const blob = new Blob([jsonStr], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
+        const blob = new Blob([JSON.stringify(cleanData, null, 2)], {type: "application/json"});
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `BeanDance_Backup_${new Date().toISOString().slice(0,10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        a.href = URL.createObjectURL(blob);
+        a.download = `BeanDance_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         showToast('EXPORTED');
         resetAddMenu();
     }
@@ -674,40 +607,30 @@
                 const data = JSON.parse(ev.target.result);
                 if(Array.isArray(data)) {
                     showToast(`IMPORTING ${data.length}...`);
-                    for(let item of data) {
-                        await addCoffee(item.roast || 'medium', item);
-                    }
+                    for(let item of data) await addCoffee(item.roast || 'medium', item);
                     showToast('DONE');
-                } else {
-                    alert("Invalid JSON");
                 }
-            } catch(err) {
-                alert("Import Failed");
-            }
+            } catch(err) { alert("Import Failed"); }
             resetAddMenu();
         };
         reader.readAsText(file);
         e.target.value = '';
     }
 
-    // --- 搜索功能 ---
+    // --- Search Logic ---
     function activateSearch() {
         searchOverlay.classList.add('active');
         searchInput.focus();
     }
-
     function deactivateSearch() {
         searchOverlay.classList.remove('active');
         searchInput.blur();
     }
-
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             const query = searchInput.value.toLowerCase().trim();
             if (!query) return;
-
             const target = allCoffeesCache.find(c => c.name && c.name.toLowerCase().includes(query));
-            
             if (target) {
                 const card = document.querySelector(`.card-wrapper[data-id="${target.id}"]`);
                 if (card) {
@@ -715,54 +638,39 @@
                     deactivateSearch();
                     searchInput.value = ''; 
                 }
-            } else {
-                showToast('NO MATCH');
-            }
+            } else { showToast('NO MATCH'); }
         }
     });
 
-    // --- 手势识别 ---
     let touchStartX = 0;
     let touchStartY = 0;
-    
     scroller.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
-    });
+    }, { passive: true });
     
     scroller.addEventListener('touchend', e => {
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-        const diffX = touchEndX - touchStartX;
-        const diffY = touchEndY - touchStartY;
-        
-        const isPullDown = diffY > 60 && Math.abs(diffX) < 50;
-        
-        if (isPullDown && !searchOverlay.classList.contains('active')) {
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        if (diffY > 60 && Math.abs(diffX) < 50 && !searchOverlay.classList.contains('active')) {
             activateSearch();
         }
     });
+    searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    searchOverlay.addEventListener('click', (e) => {
-        if (e.target === searchOverlay) {
-            deactivateSearch();
-        }
-    });
-
+    // --- 事件代理 ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
-            
-            // --- 1. 上传图标逻辑 (回归原生，最稳定) ---
+
+            // 1. Upload Btn
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                // 仅阻止冒泡防止翻转，剩下的交给浏览器
-                e.stopPropagation();
-                // 移除所有 JS 状态控制
+                e.stopPropagation(); 
                 return;
             }
 
-            // --- 2. 菜单逻辑 ---
+            // 2. Add Card
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -771,57 +679,52 @@
                     let roast = 'medium';
                     if (t.classList.contains('opt-light')) roast = 'light';
                     else if (t.classList.contains('opt-dark')) roast = 'dark';
-                    addCoffee(roast); // 这里调用 addCoffee
+                    addCoffee(roast);
                     return;
                 }
-
                 if (menuTimer) clearTimeout(menuTimer);
                 addCard.classList.add('active'); 
-                
                 menuTimer = setTimeout(() => {
                     addCard.classList.remove('active'); 
                     menuTimer = null;
-                }, 2000);
+                }, 3000);
                 return;
             }
 
+            // 3. Flip
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
-
-            if (t.closest('input')) return;
+            if (t.closest('input')) return; 
 
             if (t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
-                if (confirm('Delete?')) deleteCard(id);
+                deleteCard(id);
                 return;
             }
-
             if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
+                
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
         });
 
+        // Input Listeners
         scroller.addEventListener('focusout', (e) => {
             const input = e.target;
             if (input.tagName === 'INPUT') {
                 const wrapper = input.closest('.card-wrapper');
                 let key = null;
-                if (input.classList.contains('app-brand-title-input') || input.classList.contains('app-brand-author-input')) {
-                    key = 'meta';
-                } else if (wrapper) {
+                if (input.classList.contains('app-brand-title-input') || input.classList.contains('app-brand-author-input')) key = 'meta';
+                else if (wrapper) {
                     const id = parseInt(wrapper.dataset.id);
                     if (id > 0) key = `coffee-${id}`;
                 }
                 if (key) flushSave(key);
             }
         });
-
-        const importInput = document.getElementById('json-import-input');
-        if(importInput) importInput.addEventListener('change', handleImport);
 
         scroller.addEventListener('input', (e) => {
             const input = e.target;
@@ -836,9 +739,7 @@
                 if(input.classList.contains('title-input')) {
                     wrapper.querySelector('h2').innerText = input.value || 'Coffee';
                     updateCoffee(id, 'name', input.value);
-                } else if(input.dataset.field) {
-                    updateCoffee(id, input.dataset.field, input.value);
-                }
+                } else if(input.dataset.field) updateCoffee(id, input.dataset.field, input.value);
             }
         });
 
@@ -848,9 +749,12 @@
                 const id = parseInt(wrapper.dataset.id);
                 handleImageUpload(e, id);
             }
+            const importInput = document.getElementById('json-import-input');
+            if(e.target === importInput) handleImport(e);
         });
     }
 
+    // --- Initialization [核心修复: 永不黑屏] ---
     async function initApp() {
         try {
             await initDB(); 
@@ -863,31 +767,39 @@
             scroller.innerHTML = '';
             renderSearchCard(searchData);
             
-            // 安全机制：如果数据库为空，自动初始化一张默认卡片
+            // 如果没数据，自动创建（带超时保护）
             if (allCoffeesCache.length === 0) {
                 await addCoffee('medium');
             } else {
                 allCoffeesCache.forEach(c => renderSingleCard(c));
-                renderAddButton();
             }
+            
+            renderAddButton();
 
             if (allCoffeesCache.length > 0) {
-                scroller.scrollLeft = CARD_FULL_WIDTH - 20; 
+                setTimeout(() => {
+                    const firstCardId = allCoffeesCache[0].id;
+                    const card = document.querySelector(`.card-wrapper[data-id="${firstCardId}"]`);
+                    if(card) {
+                        card.scrollIntoView({ inline: 'center', behavior: 'auto' });
+                        requestAnimationFrame(animateCards);
+                    }
+                }, 300);
             }
             
             setupDelegation();
             requestAnimationFrame(animateCards);
 
-        } catch (e) {
-            console.error("Init Error", e);
+        } catch (e) { 
+            console.error("Init Error", e); 
         } finally {
+            // 无论如何，移除 Loading
             loader.style.opacity = '0';
             setTimeout(() => { loader.style.display = 'none'; }, 300);
             scroller.classList.add('visible');
         }
     }
 
-    // 修改：将 label 改回 div，但是内部保留 label 机制，或者直接用 label
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -899,14 +811,10 @@
         if(data && data.imageData) { src = URL.createObjectURL(data.imageData); hasImg = true; }
         if(hasImg) wrapper.classList.add('has-image');
 
-        // 使用 label 包裹 input，原生支持点击触发
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn">
-                        <input type="file" accept="image/*" hidden class="bg-input">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    </label>
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -929,15 +837,11 @@
         let hasImg = false;
         if(data.imageData) { src = URL.createObjectURL(data.imageData); hasImg = true; }
         if(hasImg) wrapper.classList.add('has-image');
-        const grind = data.grind || '2.0';
 
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn">
-                        <input type="file" accept="image/*" hidden class="card-input">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    </label>
+                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -952,7 +856,7 @@
                         <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" data-field="powder" value="${data.powder}"><span class="data-unit">g</span></div></div>
                         <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" data-field="liquid" value="${data.liquid}"><span class="data-unit">g</span></div></div>
                         <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" data-field="time" value="${data.time}"><span class="data-unit">s</span></div></div>
-                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" data-field="grind" value="${grind}"><span class="data-unit">m</span></div></div>
+                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" data-field="grind" value="${data.grind || '2.0'}"><span class="data-unit">m</span></div></div>
                     </div>
                     <div class="action-row"><button class="btn-text btn-delete">Delete</button><button class="btn-text btn-done">Done</button></div>
                 </div>
@@ -961,9 +865,7 @@
         if (isInsert) {
             scroller.insertBefore(wrapper, document.getElementById('add-card-wrapper'));
             requestAnimationFrame(() => wrapper.scrollIntoView({behavior:'smooth', inline:'center'}));
-        } else {
-            scroller.appendChild(wrapper);
-        }
+        } else scroller.appendChild(wrapper);
     }
 
     function renderAddButton() {
@@ -993,11 +895,12 @@
     }
 
     function animateCards() {
-        const wrappers = scroller.children;
+        if(!scroller) { requestAnimationFrame(animateCards); return; }
+        
         const scrollLeft = scroller.scrollLeft;
+        const wrappers = scroller.children;
         const viewportWidth = window.innerWidth;
         const center = viewportWidth / 2;
-        
         const itemWidth = 384; 
         const halfCard = 180; 
         const startOffset = (viewportWidth - 360) / 2; 
@@ -1021,21 +924,18 @@
             card.style.opacity = opacity;
 
             if (dist < 150) {
-                card.classList.add('active');
+                if (!card.classList.contains('active')) card.classList.add('active');
                 card.style.opacity = 1; 
             } else {
-                card.classList.remove('active');
-                if(card.classList.contains('flipped')) card.classList.remove('flipped');
+                if (card.classList.contains('active')) card.classList.remove('active');
+                if (card.classList.contains('flipped')) card.classList.remove('flipped');
             }
         }
         requestAnimationFrame(animateCards);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initApp);
-    } else {
-        initApp();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp);
+    else initApp();
 
 </script>
 </body>
