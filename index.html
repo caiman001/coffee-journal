@@ -7,14 +7,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V66 Logic Perfected</title>
+    <title>BeanDance V91 UI Perfected</title>
     <style>
         :root {
             --bg-color: #000000;
             --card-width: 360px;
             --card-height: 580px;
             --gap: 24px;
-            
             --glass-bg: rgba(28, 28, 30, 0.85);
             --glass-shadow: 0 40px 80px -10px rgba(0,0,0,0.9);
         }
@@ -43,78 +42,52 @@
             justify-content: center; align-items: center;
         }
 
-        /* --- 搜索 UI 优化 (Feature 2) --- */
+        /* --- 搜索组件 --- */
         .search-overlay {
             position: fixed; inset: 0; z-index: 200;
-            /* 背景透明，但作为点击拦截层存在 */
             background: rgba(0,0,0,0.01); 
             display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            padding-top: 60px; /* 距离顶部的位置 */
-            
-            /* 状态控制 */
+            padding-top: 60px;
             opacity: 0; visibility: hidden; pointer-events: none;
             transition: opacity 0.3s ease;
         }
-        
-        .search-overlay.active { 
-            opacity: 1; visibility: visible; pointer-events: auto; 
-        }
+        .search-overlay.active { opacity: 1; visibility: visible; pointer-events: auto; }
 
-        /* 搜索胶囊容器 */
         .search-capsule {
-            width: var(--card-width);
-            height: 60px;
+            width: var(--card-width); height: 60px;
             background: rgba(40, 40, 40, 0.6);
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 30px; /* 圆角矩形 */
+            border-radius: 30px;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            
-            transform: translateY(-120%); /* 初始向上隐藏 */
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* iPad 弹性动画 */
+            transform: translateY(-120%);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        
-        .search-overlay.active .search-capsule {
-            transform: translateY(0);
-        }
+        .search-overlay.active .search-capsule { transform: translateY(0); }
 
-        .search-icon {
-            width: 20px; height: 20px;
-            stroke: rgba(255,255,255,0.6);
-            margin-left: 20px; margin-right: 10px;
-        }
-
+        .search-icon { width: 20px; height: 20px; stroke: rgba(255,255,255,0.6); margin-left: 20px; margin-right: 10px; }
         .search-input-box {
-            flex: 1; height: 100%;
-            background: transparent; border: none; outline: none;
-            color: white; font-size: 20px; font-weight: 500;
-            padding-right: 20px;
-            font-family: inherit;
-            caret-color: #D4A373;
+            flex: 1; height: 100%; background: transparent; border: none; outline: none;
+            color: white; font-size: 20px; font-weight: 500; padding-right: 20px;
+            font-family: inherit; caret-color: #D4A373;
         }
-        .search-input-box::placeholder { color: transparent; } /* 隐藏提示文字 */
+        .search-input-box::placeholder { color: transparent; }
 
-        /* 滚动区域 */
+        /* --- 核心滚动区 --- */
         .card-scroller {
-            display: flex;
-            gap: var(--gap);
+            display: flex; gap: var(--gap);
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            position: absolute;
-            top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
+            position: absolute; top: 50%; width: 100%; height: calc(var(--card-height) + 120px); 
             transform: translateY(-50%) translateZ(0);
-            align-items: center;
-            padding: 0; 
-            opacity: 0; 
-            transition: opacity 0.6s ease-out;
-            will-change: opacity, scroll-position;
+            align-items: center; padding: 0; 
+            opacity: 0; transition: opacity 0.6s ease-out;
         }
         .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
-
         .card-scroller::before, .card-scroller::after {
             content: ''; display: block;
             flex: 0 0 calc(50vw - var(--card-width) / 2);
@@ -128,9 +101,7 @@
             scroll-snap-align: center;
             perspective: 2000px;
             z-index: 1;
-            will-change: transform, opacity;
-            transform: scale(0.88);
-            opacity: 0.4;
+            will-change: transform; 
         }
         .card-wrapper.active { z-index: 100; }
 
@@ -146,11 +117,12 @@
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
             border-radius: 40px; box-sizing: border-box;
             box-shadow: var(--glass-shadow);
-            /* 深色微渐变 */
             background: linear-gradient(160deg, #1a1a1a 0%, #050505 100%);
         }
 
-        .card-front::after, .card-back::after {
+        /* 性能优化：只有中心卡片显示流光 */
+        .card-wrapper:not(.active) .card-front::after { display: none; }
+        .card-front::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
             background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -163,22 +135,69 @@
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg) translateZ(0); }
         
         .bg-image { 
-            position: absolute; 
-            top: -1%; left: -1%; width: 102%; height: 102%; 
-            object-fit: cover; 
-            transition: opacity 0.5s ease; 
-            background-color: #000; 
-            z-index: 1;
-            will-change: transform;
-            -webkit-backface-visibility: hidden;
+            position: absolute; top: -1%; left: -1%; width: 102%; height: 102%; 
+            object-fit: cover; transition: opacity 0.5s ease; 
+            background-color: #000; z-index: 1;
         }
-        
         .overlay-gradient {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.95) 100%);
-            z-index: 2; pointer-events: none;
-            transform: scale(1.02); 
-            transform-origin: bottom center;
+            z-index: 2; pointer-events: none; transform: scale(1.02); transform-origin: bottom center;
+        }
+
+        /* --- 核心优化：上传按钮样式 --- */
+        .upload-btn {
+            position: absolute; top: 24px; right: 24px; 
+            width: 50px; height: 50px; 
+            /* 
+               [状态1: 默认无图]
+               背景完全透明 (Clean)，无衬底。
+               利用 Flex 居中图标。
+            */
+            background: transparent;
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 200; 
+            cursor: pointer; 
+            pointer-events: auto;
+            border-radius: 50%; /* 圆形点击区 */
+        }
+        
+        /* 隐藏真实 Input */
+        .upload-btn input {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); border: 0;
+        }
+
+        /* SVG 图标层 */
+        .upload-btn svg { 
+            stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8)); /* 增加投影，确保无衬底时在浅色背景也可见 */
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.2s ease;
+            opacity: 1;
+        }
+
+        /* 
+           [状态2: 有图] 
+           1. 容器：变为"空白帧"。背景给极低透明度的白色，强制 Safari 识别为实体层。
+           2. 图标：透明度为 0，隐藏。
+        */
+        .card-wrapper.has-image .upload-btn {
+            background: rgba(255,255,255,0.001); /* 视觉不可见，但物理可点 */
+        }
+        
+        .card-wrapper.has-image .upload-btn svg {
+            opacity: 0; /* 图标隐身 */
+            transform: scale(0.5);
+        }
+
+        /* 交互反馈：无论有图无图，按下时给用户一点反馈 */
+        .upload-btn:active { transform: scale(0.9); }
+        
+        /* 有图时按下，SVG 稍微显现，提示用户这里有个功能 */
+        .card-wrapper.has-image .upload-btn:active svg {
+            opacity: 0.4;
+            transform: scale(0.9);
         }
 
         .card-content {
@@ -189,102 +208,68 @@
         }
         .card-content input { pointer-events: auto; }
 
-        .app-brand-title-input {
+        .app-brand-title-input, .app-brand-author-input {
             background: transparent; border: none; outline: none;
             font-family: inherit; width: 100%; text-align: center; padding: 0;
-            font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px;
-            margin: 0; 
-            background: linear-gradient(135deg, #fff 0%, #aaaaaa 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.5); caret-color: #fff;
-            color: white; 
-        }
-        .app-brand-author-input {
-            background: transparent; border: none; outline: none;
-            font-family: inherit; width: 100%; text-align: center; padding: 0;
-            font-size: 10px; font-weight: 600; letter-spacing: 6px; 
-            text-transform: uppercase; color: rgba(255,255,255,0.5);
-            margin: 4px 0 0 0; 
             caret-color: #fff;
         }
-
+        .app-brand-title-input {
+            font-size: 42px; font-weight: 800; line-height: 0.9; letter-spacing: -1.5px;
+            background: linear-gradient(135deg, #fff 0%, #aaaaaa 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .app-brand-author-input {
+            font-size: 10px; font-weight: 600; letter-spacing: 6px; 
+            text-transform: uppercase; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;
+        }
         .card-content h2 { 
             margin: 0; font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95);
-            line-height: 1.1; letter-spacing: -0.5px;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            line-height: 1.1; letter-spacing: -0.5px; text-shadow: 0 4px 20px rgba(0,0,0,0.8);
         }
         .card-content p { 
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* 上传按钮 */
-        .upload-btn {
-            position: absolute; top: 24px; right: 24px; 
-            width: 50px; height: 50px; 
-            background: transparent; 
-            display: flex; justify-content: center; align-items: center; z-index: 20;
-            cursor: pointer; pointer-events: auto;
-            opacity: 0.8;
-            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .upload-btn svg { 
-            stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
-            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9));
-            transition: transform 0.2s ease;
-        }
-        .upload-btn:active svg { transform: scale(0.85); }
-        .card-wrapper.has-image .upload-btn { opacity: 0; transform: scale(0.8); pointer-events: auto; }
-        .card-wrapper.has-image.reveal-icon .upload-btn { opacity: 1; transform: scale(1.1); }
-
         .card-back {
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
             backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%);
-            padding: 50px 30px; 
-            display: flex; flex-direction: column; color: white;
+            padding: 50px 30px; display: flex; flex-direction: column; color: white;
             border: 1px solid rgba(255,255,255,0.1);
         }
-
         .title-input-group {
-            margin-bottom: 30px; text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);
             padding-bottom: 15px; display: flex; align-items: center; justify-content: center; min-height: 40px; 
         }
         .title-input {
-            width: 100%; background: transparent; border: none;
-            font-size: 24px; font-weight: 700; color: white; text-align: center;
-            outline: none; font-family: inherit; line-height: 1.2; padding: 0; margin: 0;
+            width: 100%; background: transparent; border: none; font-size: 24px; font-weight: 700; color: white; 
+            text-align: center; outline: none; font-family: inherit; line-height: 1.2; padding: 0; margin: 0;
         }
-        .title-input::placeholder { color: rgba(255,255,255,0.3); }
-
         .data-list { display: flex; flex-direction: column; gap: 0; width: 100%; margin-bottom: 20px; }
         .data-row {
             display: flex; justify-content: space-between; align-items: center;
             padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.08); height: 24px;
         }
-        .data-label { font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px; }
+        .data-label { font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; }
         .data-value-group { display: flex; align-items: center; justify-content: flex-end; width: 140px; }
         .data-input {
             flex: 1; background: transparent; border: none; text-align: right; 
             color: white; font-size: 20px; font-weight: 600; outline: none; 
             font-family: "SF Pro Display", -apple-system, sans-serif; font-variant-numeric: tabular-nums; 
-            padding: 0; margin: 0;
         }
         .data-unit {
             font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
-            width: 25px; text-align: right; padding-left: 0; margin-left: 5px; flex-shrink: 0; 
+            width: 25px; text-align: right; margin-left: 5px; flex-shrink: 0; 
         }
-
         .action-row { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
         .btn-text { 
             background: rgba(255,255,255,0.08); border: none; color: white; 
             padding: 12px 24px; border-radius: 24px; font-size: 13px; font-weight: 500; cursor: pointer; 
             backdrop-filter: blur(10px); transition: background 0.2s;
         }
-        .btn-text:active { background: rgba(255,255,255,0.15); }
         .btn-delete { background: rgba(255, 69, 58, 0.1); color: #FF453A; }
-        .btn-delete:active { background: rgba(255, 69, 58, 0.2); }
 
         .card-add {
             background: rgba(255,255,255,0.02); position: relative;
@@ -295,54 +280,33 @@
             content: ''; position: absolute; inset: 0; border-radius: 40px;
             border: 1px dashed rgba(255,255,255,0.2); pointer-events: none;
         }
-        .card-add:active { background: rgba(255,255,255,0.05); }
-        
         .add-icon { 
-            font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; pointer-events: none;
-            transition: opacity 0.3s;
+            font-size: 60px; color: rgba(255,255,255,0.2); font-weight: 200; margin-bottom: 20px; 
+            transition: opacity 0.3s; pointer-events: none;
         }
-        .card-add.active .add-icon { opacity: 0; display: none; }
-
+        .card-add.active .add-icon { opacity: 0; }
         .add-roast-group {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: flex; flex-direction: column; gap: 12px; width: 60%;
-            z-index: 20; 
-            visibility: hidden; opacity: 0; 
-            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+            visibility: hidden; opacity: 0; transition: opacity 0.3s ease, visibility 0s linear 0.3s; z-index: 20;
         }
-        .card-add.active .add-roast-group { 
-            visibility: visible; opacity: 1; 
-            transition: opacity 0.3s ease, visibility 0s;
-        }
-
+        .card-add.active .add-roast-group { visibility: visible; opacity: 1; transition: opacity 0.3s ease, visibility 0s; }
         .add-menu-btn {
             background: rgba(255,255,255,0.08); padding: 16px; border-radius: 16px;
             text-align: center; color: white; font-weight: 600; font-size: 14px;
             backdrop-filter: blur(10px); cursor: pointer; border: 1px solid rgba(255,255,255,0.05);
-            transition: background 0.2s;
         }
-        .add-menu-btn:active { background: rgba(255,255,255,0.15); }
-        
         .add-io-group {
             position: absolute; bottom: 30px; left: 0; width: 100%;
-            display: flex; justify-content: center; gap: 20px;
-            z-index: 30; 
-            visibility: hidden; opacity: 0;
-            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+            display: flex; justify-content: center; gap: 20px; z-index: 30; 
+            visibility: hidden; opacity: 0; transition: opacity 0.3s ease, visibility 0s linear 0.3s;
         }
-        .card-add.active .add-io-group { 
-            visibility: visible; opacity: 1; 
-            transition: opacity 0.3s ease, visibility 0s;
-        }
-
+        .card-add.active .add-io-group { visibility: visible; opacity: 1; transition: opacity 0.3s ease, visibility 0s; }
         .btn-io {
             font-size: 11px; font-weight: 700; letter-spacing: 1px;
             color: rgba(255,255,255,0.3); padding: 8px 12px;
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-            cursor: pointer; transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer;
         }
-        .btn-io:active { color: white; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05); }
-
         .opt-light { color: #ffe0b2; }
         .opt-medium { color: #ffccbc; }
         .opt-dark { color: #d7ccc8; }
@@ -353,19 +317,15 @@
             padding: 8px 20px; border-radius: 20px; color: white; font-size: 12px; letter-spacing: 1px;
             opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 500; font-weight: 600;
         }
-        
         .loading-screen {
-            position: fixed; inset: 0; z-index: 1000;
-            background: #000;
+            position: fixed; inset: 0; z-index: 1000; background: #000;
             display: flex; justify-content: center; align-items: center;
-            color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 2px;
-            transition: opacity 0.3s;
+            color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 2px; transition: opacity 0.3s;
         }
     </style>
 </head>
 <body>
 
-<!-- 搜索覆盖层 (Feature 2 Refined) -->
 <div class="search-overlay" id="searchOverlay">
     <div class="search-capsule" id="searchCapsule">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -377,13 +337,12 @@
 <div class="status-toast" id="statusToast">SAVED</div>
 
 <div class="app-container">
-    <div class="card-scroller" id="scroller">
-    </div>
+    <div class="card-scroller" id="scroller"></div>
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V46_Stable'; 
-    const DB_VERSION = 1; 
+    const DB_NAME = 'BeanDance_V91_Stable'; 
+    const DB_VERSION = 2; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0; 
     const METADATA_ID = -1;
@@ -394,16 +353,14 @@
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    let revealTimer = null;
-    let activeUploadCardId = null; 
     let menuTimer; 
+    let lastScrollLeft = -1; 
     
     const scroller = document.getElementById('scroller');
     const toast = document.getElementById('statusToast');
     const loader = document.getElementById('loadingText');
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
-    const searchCapsule = document.getElementById('searchCapsule');
 
     function showToast(msg) {
         toast.innerText = msg;
@@ -412,23 +369,18 @@
     }
 
     function initDB() {
-        const dbPromise = new Promise((resolve) => {
+        return new Promise((resolve) => {
             if (!window.indexedDB) return resolve(null);
-            try {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                request.onupgradeneeded = (e) => {
-                    db = e.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                    }
-                };
-                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
-                request.onerror = () => resolve(null); 
-                request.onblocked = () => resolve(null);
-            } catch (e) { resolve(null); }
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            request.onerror = () => resolve(null); 
         });
-        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1000));
-        return Promise.race([dbPromise, timeoutPromise]);
     }
 
     function getAllCoffees() {
@@ -494,23 +446,6 @@
     }
 
     async function addCoffee(roast, overrideData = null) {
-        if (!db) { 
-            const tempId = Date.now();
-            let newCoffee = overrideData || {
-                id: tempId, name: 'New Coffee', 
-                powder: '18', liquid: '36', time: '25', grind: '2.0', 
-                roast: roast || 'medium', imageData: null, created: Date.now()
-            };
-            if(overrideData) delete newCoffee.id;
-            allCoffeesCache.push(newCoffee);
-            renderSingleCard(newCoffee, true);
-            resetAddMenu();
-            return;
-        }
-
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        
         let newCoffee = overrideData || {
             name: 'New Coffee', 
             powder: '18', liquid: '36', time: '25', grind: '2.0', 
@@ -519,12 +454,20 @@
         
         if(overrideData) delete newCoffee.id;
 
-        store.add(newCoffee).onsuccess = (e) => {
-            newCoffee.id = e.target.result;
+        if (!db) {
+            newCoffee.id = Date.now();
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
-            if(!overrideData) resetAddMenu();
-        };
+        } else {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            store.add(newCoffee).onsuccess = (e) => {
+                newCoffee.id = e.target.result;
+                allCoffeesCache.push(newCoffee);
+                renderSingleCard(newCoffee, true);
+            };
+        }
+        if(!overrideData) resetAddMenu();
     }
 
     function resetAddMenu() {
@@ -535,24 +478,15 @@
         }
     }
 
-    async function deleteCard(id) {
-        if(!db) { 
+    function deleteCard(id) {
+        if (confirm('Delete?')) {
+            if(db) {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).delete(id);
+            }
             allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
             removeCardDOM(id);
-            return;
         }
-
-        const key = `coffee-${id}`;
-        if (debounceMap.has(key)) {
-            clearTimeout(debounceMap.get(key).timer);
-            debounceMap.delete(key);
-        }
-
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).delete(id).onsuccess = () => {
-            allCoffeesCache = allCoffeesCache.filter(c => c.id !== id);
-            removeCardDOM(id);
-        };
     }
 
     function removeCardDOM(id) {
@@ -592,8 +526,6 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
-        hideAllIcons(); // 上传完成清理状态
-        
         const img = wrapper.querySelector('.bg-image');
         if(img) {
             if(img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
@@ -601,16 +533,6 @@
             img.style.opacity = 1;
             wrapper.classList.add('has-image');
         }
-    }
-
-    // 统一的状态清理函数
-    function hideAllIcons() {
-        if (revealTimer) {
-            clearTimeout(revealTimer);
-            revealTimer = null;
-        }
-        activeUploadCardId = null;
-        document.querySelectorAll('.reveal-icon').forEach(el => el.classList.remove('reveal-icon'));
     }
 
     function processImage(file) {
@@ -623,7 +545,7 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const maxDim = 1200; 
+                    const maxDim = 640; 
                     let w = img.width, h = img.height;
                     if (w > h) { if (w > maxDim) { h *= maxDim/w; w = maxDim; } } 
                     else { if (h > maxDim) { w *= maxDim/h; h = maxDim; } }
@@ -642,16 +564,11 @@
             const { imageData, ...rest } = c; 
             return rest;
         });
-        const jsonStr = JSON.stringify(cleanData, null, 2);
-        const blob = new Blob([jsonStr], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
+        const blob = new Blob([JSON.stringify(cleanData, null, 2)], {type: "application/json"});
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `BeanDance_Backup_${new Date().toISOString().slice(0,10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        a.href = URL.createObjectURL(blob);
+        a.download = `BeanDance_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         showToast('EXPORTED');
         resetAddMenu();
     }
@@ -665,40 +582,30 @@
                 const data = JSON.parse(ev.target.result);
                 if(Array.isArray(data)) {
                     showToast(`IMPORTING ${data.length}...`);
-                    for(let item of data) {
-                        await addCoffee(item.roast || 'medium', item);
-                    }
+                    for(let item of data) await addCoffee(item.roast || 'medium', item);
                     showToast('DONE');
-                } else {
-                    alert("Invalid JSON");
                 }
-            } catch(err) {
-                alert("Import Failed");
-            }
+            } catch(err) { alert("Import Failed"); }
             resetAddMenu();
         };
         reader.readAsText(file);
         e.target.value = '';
     }
 
-    // --- 搜索功能 (Feature 2 Refined: Click anywhere to close) ---
+    // --- Search Logic ---
     function activateSearch() {
         searchOverlay.classList.add('active');
         searchInput.focus();
     }
-
     function deactivateSearch() {
         searchOverlay.classList.remove('active');
         searchInput.blur();
     }
-
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             const query = searchInput.value.toLowerCase().trim();
             if (!query) return;
-
             const target = allCoffeesCache.find(c => c.name && c.name.toLowerCase().includes(query));
-            
             if (target) {
                 const card = document.querySelector(`.card-wrapper[data-id="${target.id}"]`);
                 if (card) {
@@ -706,85 +613,39 @@
                     deactivateSearch();
                     searchInput.value = ''; 
                 }
-            } else {
-                showToast('NO MATCH');
-            }
+            } else { showToast('NO MATCH'); }
         }
     });
 
-    // --- 手势识别 ---
     let touchStartX = 0;
     let touchStartY = 0;
-    
     scroller.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
-    });
+    }, { passive: true });
     
     scroller.addEventListener('touchend', e => {
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-        const diffX = touchEndX - touchStartX;
-        const diffY = touchEndY - touchStartY;
-        
-        const isPullDown = diffY > 60 && Math.abs(diffX) < 50;
-        
-        if (isPullDown && !searchOverlay.classList.contains('active')) {
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        if (diffY > 60 && Math.abs(diffX) < 50 && !searchOverlay.classList.contains('active')) {
             activateSearch();
         }
     });
+    searchOverlay.addEventListener('click', (e) => { if (e.target === searchOverlay) deactivateSearch(); });
 
-    // New Interaction Logic: Click overlay to close, but not capsule
-    searchOverlay.addEventListener('click', (e) => {
-        // 如果点击的是背景遮罩层，则关闭
-        if (e.target === searchOverlay) {
-            deactivateSearch();
-        }
-    });
-
+    // --- 事件代理: 极简模式 ---
     function setupDelegation() {
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
-            
-            // --- 1. Upload Icon Logic (Feature 1 Update: Longer Timer) ---
+
+            // 1. 上传按钮：原生接管，JS只阻止冒泡
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                const wrapper = uploadBtn.closest('.card-wrapper');
-                if (!wrapper.classList.contains('has-image')) return;
-
-                const currentCardId = wrapper.dataset.id;
-                const isCurrentlyRevealed = wrapper.classList.contains('reveal-icon');
-
-                if (revealTimer) {
-                    clearTimeout(revealTimer);
-                    revealTimer = null;
-                }
-
-                if (isCurrentlyRevealed) {
-                    // 用户要选图了：给予超长倒计时 (6s)，确保从系统相册回来时图标不消失
-                    revealTimer = setTimeout(() => hideAllIcons(), 6000); 
-                    return; 
-                } else {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    hideAllIcons(); 
-                    
-                    wrapper.classList.add('reveal-icon');
-                    activeUploadCardId = currentCardId;
-                    
-                    // 修改：延长至 5000ms，让用户有充足反应时间
-                    revealTimer = setTimeout(() => hideAllIcons(), 5000);
-                    return;
-                }
+                e.stopPropagation(); 
+                return;
             }
 
-            // --- 2. Global Cleanup Logic ---
-            if (!t.closest('input')) {
-                hideAllIcons();
-            }
-
-            // --- 3. Other Card Logic ---
+            // 2. Add Card Logic
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -796,54 +657,49 @@
                     addCoffee(roast);
                     return;
                 }
-
                 if (menuTimer) clearTimeout(menuTimer);
                 addCard.classList.add('active'); 
-                
                 menuTimer = setTimeout(() => {
                     addCard.classList.remove('active'); 
                     menuTimer = null;
-                }, 2000);
+                }, 3000);
                 return;
             }
 
+            // 3. Card Flip Logic
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
-
-            if (t.closest('input')) return;
+            if (t.closest('input')) return; 
 
             if (t.closest('.btn-delete')) {
                 const id = parseInt(wrapper.dataset.id);
-                if (confirm('Delete?')) deleteCard(id);
+                deleteCard(id);
                 return;
             }
-
             if (t.closest('.btn-done')) { wrapper.classList.remove('flipped'); return; }
 
             if (!t.closest('.card-back')) {
                 if (wrapper.id === 'search-wrapper') return;
+                
                 if (wrapper.classList.contains('active')) wrapper.classList.toggle('flipped');
                 else wrapper.scrollIntoView({behavior:'smooth', inline:'center'});
             }
         });
 
+        // 辅助事件
         scroller.addEventListener('focusout', (e) => {
             const input = e.target;
             if (input.tagName === 'INPUT') {
                 const wrapper = input.closest('.card-wrapper');
                 let key = null;
-                if (input.classList.contains('app-brand-title-input') || input.classList.contains('app-brand-author-input')) {
-                    key = 'meta';
-                } else if (wrapper) {
+                if (input.classList.contains('app-brand-title-input') || input.classList.contains('app-brand-author-input')) key = 'meta';
+                else if (wrapper) {
                     const id = parseInt(wrapper.dataset.id);
                     if (id > 0) key = `coffee-${id}`;
                 }
                 if (key) flushSave(key);
             }
         });
-
-        const importInput = document.getElementById('json-import-input');
-        if(importInput) importInput.addEventListener('change', handleImport);
 
         scroller.addEventListener('input', (e) => {
             const input = e.target;
@@ -858,9 +714,7 @@
                 if(input.classList.contains('title-input')) {
                     wrapper.querySelector('h2').innerText = input.value || 'Coffee';
                     updateCoffee(id, 'name', input.value);
-                } else if(input.dataset.field) {
-                    updateCoffee(id, input.dataset.field, input.value);
-                }
+                } else if(input.dataset.field) updateCoffee(id, input.dataset.field, input.value);
             }
         });
 
@@ -870,9 +724,12 @@
                 const id = parseInt(wrapper.dataset.id);
                 handleImageUpload(e, id);
             }
+            const importInput = document.getElementById('json-import-input');
+            if(e.target === importInput) handleImport(e);
         });
     }
 
+    // --- 初始化 ---
     async function initApp() {
         try {
             await initDB(); 
@@ -884,8 +741,14 @@
             
             scroller.innerHTML = '';
             renderSearchCard(searchData);
-            allCoffeesCache.forEach(c => renderSingleCard(c));
-            renderAddButton();
+            
+            // 数据初始化检查：防止只有首页
+            if (allCoffeesCache.length === 0) {
+                await addCoffee('medium'); 
+            } else {
+                allCoffeesCache.forEach(c => renderSingleCard(c));
+                renderAddButton();
+            }
 
             if (allCoffeesCache.length > 0) {
                 scroller.scrollLeft = CARD_FULL_WIDTH - 20; 
@@ -894,15 +757,15 @@
             setupDelegation();
             requestAnimationFrame(animateCards);
 
-        } catch (e) {
-            console.error("Init Error", e);
-        } finally {
+        } catch (e) { console.error("Init Error", e); } 
+        finally {
             loader.style.opacity = '0';
             setTimeout(() => { loader.style.display = 'none'; }, 300);
             scroller.classList.add('visible');
         }
     }
 
+    // --- 渲染逻辑 ---
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -917,7 +780,7 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <label class="upload-btn"><input type="file" accept="image/*" class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -940,12 +803,11 @@
         let hasImg = false;
         if(data.imageData) { src = URL.createObjectURL(data.imageData); hasImg = true; }
         if(hasImg) wrapper.classList.add('has-image');
-        const grind = data.grind || '2.0';
 
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <label class="upload-btn"><input type="file" accept="image/*" class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -960,7 +822,7 @@
                         <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" data-field="powder" value="${data.powder}"><span class="data-unit">g</span></div></div>
                         <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" data-field="liquid" value="${data.liquid}"><span class="data-unit">g</span></div></div>
                         <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" data-field="time" value="${data.time}"><span class="data-unit">s</span></div></div>
-                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" data-field="grind" value="${grind}"><span class="data-unit">m</span></div></div>
+                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="number" step="0.1" data-field="grind" value="${data.grind || '2.0'}"><span class="data-unit">m</span></div></div>
                     </div>
                     <div class="action-row"><button class="btn-text btn-delete">Delete</button><button class="btn-text btn-done">Done</button></div>
                 </div>
@@ -974,39 +836,15 @@
         }
     }
 
-    function renderAddButton() {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'card-wrapper';
-        wrapper.id = 'add-card-wrapper';
-        wrapper.innerHTML = `
-            <div class="card">
-                <div class="card-front">
-                    <div class="card-add">
-                        <div class="add-icon">+</div>
-                        <div class="add-roast-group">
-                            <div class="add-menu-btn opt-light" data-roast="light">Light</div>
-                            <div class="add-menu-btn opt-medium" data-roast="medium">Medium</div>
-                            <div class="add-menu-btn opt-dark" data-roast="dark">Dark</div>
-                        </div>
-                        <div class="add-io-group">
-                            <span class="btn-io btn-import">IMPORT</span>
-                            <span class="btn-io btn-export">EXPORT</span>
-                            <input type="file" id="json-import-input" accept=".json" hidden>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-back" style="display:none"></div>
-            </div>`;
-        scroller.appendChild(wrapper);
-    }
-
-    // --- 核心修复 3：统一动画计算 ---
     function animateCards() {
-        const wrappers = scroller.children;
+        if(!scroller) { requestAnimationFrame(animateCards); return; }
         const scrollLeft = scroller.scrollLeft;
+        if (scrollLeft === lastScrollLeft) { requestAnimationFrame(animateCards); return; }
+        lastScrollLeft = scrollLeft;
+
+        const wrappers = scroller.children;
         const viewportWidth = window.innerWidth;
         const center = viewportWidth / 2;
-        
         const itemWidth = 384; 
         const halfCard = 180; 
         const startOffset = (viewportWidth - 360) / 2; 
@@ -1023,7 +861,6 @@
             const dist = Math.abs(center - cardCenterX);
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
-            // 统一的物理公式，确保所有卡片（包括首页）滑动感一致
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
@@ -1031,21 +868,18 @@
             card.style.opacity = opacity;
 
             if (dist < 150) {
-                card.classList.add('active');
+                if (!card.classList.contains('active')) card.classList.add('active');
                 card.style.opacity = 1; 
             } else {
-                card.classList.remove('active');
-                if(card.classList.contains('flipped')) card.classList.remove('flipped');
+                if (card.classList.contains('active')) card.classList.remove('active');
+                if (card.classList.contains('flipped')) card.classList.remove('flipped');
             }
         }
         requestAnimationFrame(animateCards);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initApp);
-    } else {
-        initApp();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp);
+    else initApp();
 
 </script>
 </body>
