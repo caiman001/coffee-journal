@@ -2,12 +2,24 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 针对 iPad Pro 11寸及其他移动设备的视口设置 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- PWA 设置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V92 Stable</title>
+    <!-- *** 图标适配设置 (请确保 icon.png 在同级目录) *** -->
+    <!-- 浏览器标签页图标 -->
+    <link rel="shortcut icon" href="icon.png" type="image/png">
+    <!-- iOS/iPad 主屏幕图标 (自动适配 iPad Pro 11寸及其他尺寸) -->
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icon.png">
+
+    <title>BeanDance V93 Icon Update</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -218,32 +230,28 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* --- 上传按钮优化开始 --- */
+        /* --- 上传按钮优化 --- */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
-            /* 无图时：完全透明背景，无衬底 */
             background: transparent;
             display: flex; justify-content: center; align-items: center; z-index: 20;
             cursor: pointer; pointer-events: auto;
-            /* 只有图标有过渡效果，容器一直存在 */
             transition: transform 0.2s ease;
         }
         
         .upload-btn svg { 
             stroke: white; width: 24px; height: 24px; stroke-width: 1.5; 
             filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9));
-            /* 关键：让点击穿透 SVG 到达 Label 容器 */
             pointer-events: none; 
             transition: opacity 0.3s ease;
             opacity: 1; /* 默认显示 */
         }
 
-        /* 按下时的反馈，轻微缩放 */
         .upload-btn:active { transform: scale(0.9); }
 
         /* 有图时：
-           1. 容器：背景设为极低透明度白色 (Safari Hack)，变成"空白帧"，保证可点击
+           1. 容器：背景设为极低透明度白色 (Safari Hack)，保证可点击
            2. 图标：透明度设为 0，隐藏
         */
         .card-wrapper.has-image .upload-btn { 
@@ -253,11 +261,9 @@
             opacity: 0; 
         }
         
-        /* 有图时按下：让图标稍微显现，给用户反馈 */
         .card-wrapper.has-image .upload-btn:active svg {
             opacity: 0.5;
         }
-        /* --- 上传按钮优化结束 --- */
 
         .card-back {
             transform: rotateY(180deg); z-index: 1;
@@ -403,8 +409,8 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V46_Stable'; 
-    const DB_VERSION = 1; 
+    const DB_NAME = 'BeanDance_V92_Stable'; // 版本升级，确保数据重置
+    const DB_VERSION = 2; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0; 
     const METADATA_ID = -1;
@@ -415,7 +421,6 @@
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
-    // 移除复杂的 revealTimer，回归原生行为
     let menuTimer; 
     
     const scroller = document.getElementById('scroller');
@@ -514,14 +519,17 @@
     }
 
     async function addCoffee(roast, overrideData = null) {
+        // 创建新对象
+        let newCoffee = overrideData || {
+            name: 'New Coffee', 
+            powder: '18', liquid: '36', time: '25', grind: '2.0', 
+            roast: roast || 'medium', imageData: null, created: Date.now()
+        };
+        
+        if(overrideData) delete newCoffee.id;
+
         if (!db) { 
-            const tempId = Date.now();
-            let newCoffee = overrideData || {
-                id: tempId, name: 'New Coffee', 
-                powder: '18', liquid: '36', time: '25', grind: '2.0', 
-                roast: roast || 'medium', imageData: null, created: Date.now()
-            };
-            if(overrideData) delete newCoffee.id;
+            newCoffee.id = Date.now();
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
             resetAddMenu();
@@ -531,14 +539,6 @@
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         
-        let newCoffee = overrideData || {
-            name: 'New Coffee', 
-            powder: '18', liquid: '36', time: '25', grind: '2.0', 
-            roast: roast || 'medium', imageData: null, created: Date.now()
-        };
-        
-        if(overrideData) delete newCoffee.id;
-
         store.add(newCoffee).onsuccess = (e) => {
             newCoffee.id = e.target.result;
             allCoffeesCache.push(newCoffee);
@@ -612,7 +612,6 @@
 
     function updateImageDOM(wrapper, blob) {
         if(!wrapper) return;
-        // 不再需要 hideAllIcons()，CSS 会自动处理显隐
         
         const img = wrapper.querySelector('.bg-image');
         if(img) {
@@ -754,17 +753,16 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- 核心修改：上传逻辑 ---
+            // --- 1. 上传图标逻辑 (回归原生，最稳定) ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                // 仅阻止冒泡，防止触发卡片翻转
-                // 浏览器原生处理 <label> 点击，自动触发 <input>
+                // 仅阻止冒泡防止翻转，剩下的交给浏览器
                 e.stopPropagation();
-                // 移除所有 JS 显隐控制，全交给 CSS
+                // 移除所有 JS 状态控制
                 return;
             }
 
-            // --- 3. Other Card Logic ---
+            // --- 2. 菜单逻辑 ---
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -773,7 +771,7 @@
                     let roast = 'medium';
                     if (t.classList.contains('opt-light')) roast = 'light';
                     else if (t.classList.contains('opt-dark')) roast = 'dark';
-                    addCoffee(roast);
+                    addCoffee(roast); // 这里调用 addCoffee
                     return;
                 }
 
@@ -864,8 +862,14 @@
             
             scroller.innerHTML = '';
             renderSearchCard(searchData);
-            allCoffeesCache.forEach(c => renderSingleCard(c));
-            renderAddButton();
+            
+            // 安全机制：如果数据库为空，自动初始化一张默认卡片
+            if (allCoffeesCache.length === 0) {
+                await addCoffee('medium');
+            } else {
+                allCoffeesCache.forEach(c => renderSingleCard(c));
+                renderAddButton();
+            }
 
             if (allCoffeesCache.length > 0) {
                 scroller.scrollLeft = CARD_FULL_WIDTH - 20; 
@@ -883,6 +887,7 @@
         }
     }
 
+    // 修改：将 label 改回 div，但是内部保留 label 机制，或者直接用 label
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -894,10 +899,14 @@
         if(data && data.imageData) { src = URL.createObjectURL(data.imageData); hasImg = true; }
         if(hasImg) wrapper.classList.add('has-image');
 
+        // 使用 label 包裹 input，原生支持点击触发
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="bg-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <label class="upload-btn">
+                        <input type="file" accept="image/*" hidden class="bg-input">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    </label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
@@ -925,7 +934,10 @@
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
-                    <label class="upload-btn"><input type="file" accept="image/*" hidden class="card-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></label>
+                    <label class="upload-btn">
+                        <input type="file" accept="image/*" hidden class="card-input">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    </label>
                     <div class="bg-placeholder"></div>
                     <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
