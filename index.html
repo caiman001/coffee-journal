@@ -2,24 +2,20 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 针对 iPad Pro 11寸及其他移动设备的视口设置 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- PWA 设置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <!-- *** 图标适配设置 (请确保 icon.png 在同级目录) *** -->
-    <!-- 浏览器标签页图标 -->
+    <!-- 图标设置 -->
     <link rel="shortcut icon" href="icon.png" type="image/png">
-    <!-- iOS/iPad 主屏幕图标 (自动适配 iPad Pro 11寸及其他尺寸) -->
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="apple-touch-icon" sizes="152x152" href="icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
     <link rel="apple-touch-icon" sizes="167x167" href="icon.png">
 
-    <title>BeanDance V93 Icon Update</title>
+    <title>BeanDance V94 Scroll Fix</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -118,6 +114,9 @@
             opacity: 0; 
             transition: opacity 0.6s ease-out;
             will-change: opacity, scroll-position;
+            
+            /* [修复] 明确告诉浏览器这里处理水平滑动手势 */
+            touch-action: pan-x; 
         }
         .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
@@ -156,7 +155,7 @@
             background: linear-gradient(160deg, #1a1a1a 0%, #050505 100%);
         }
 
-        /* 优化：仅 Active 卡片显示流光，减少 GPU 压力 */
+        /* 优化：仅 Active 卡片显示流光 */
         .card-wrapper:not(.active) .card-front::after,
         .card-wrapper:not(.active) .card-back::after {
             animation: none; display: none;
@@ -230,7 +229,7 @@
             color: rgba(255,255,255,0.7); text-transform: uppercase;
         }
 
-        /* --- 上传按钮优化 --- */
+        /* --- 上传按钮优化 (保留稳定版 V88) --- */
         .upload-btn {
             position: absolute; top: 24px; right: 24px; 
             width: 50px; height: 50px; 
@@ -250,10 +249,7 @@
 
         .upload-btn:active { transform: scale(0.9); }
 
-        /* 有图时：
-           1. 容器：背景设为极低透明度白色 (Safari Hack)，保证可点击
-           2. 图标：透明度设为 0，隐藏
-        */
+        /* 有图时：空白帧逻辑 */
         .card-wrapper.has-image .upload-btn { 
             background: rgba(255,255,255,0.001); 
         }
@@ -409,7 +405,7 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V92_Stable'; // 版本升级，确保数据重置
+    const DB_NAME = 'BeanDance_V94_Stable'; // Keep versioning up
     const DB_VERSION = 2; 
     const STORE_NAME = 'coffees';
     const SEARCH_BG_ID = 0; 
@@ -519,7 +515,6 @@
     }
 
     async function addCoffee(roast, overrideData = null) {
-        // 创建新对象
         let newCoffee = overrideData || {
             name: 'New Coffee', 
             powder: '18', liquid: '36', time: '25', grind: '2.0', 
@@ -753,16 +748,14 @@
         scroller.addEventListener('click', async (e) => {
             const t = e.target;
             
-            // --- 1. 上传图标逻辑 (回归原生，最稳定) ---
+            // --- 上传逻辑 (Native) ---
             const uploadBtn = t.closest('.upload-btn');
             if (uploadBtn) {
-                // 仅阻止冒泡防止翻转，剩下的交给浏览器
                 e.stopPropagation();
-                // 移除所有 JS 状态控制
                 return;
             }
 
-            // --- 2. 菜单逻辑 ---
+            // --- 菜单逻辑 ---
             const addCard = t.closest('.card-add');
             if (addCard) {
                 if (t.classList.contains('btn-export')) { handleExport(); return; }
@@ -771,7 +764,7 @@
                     let roast = 'medium';
                     if (t.classList.contains('opt-light')) roast = 'light';
                     else if (t.classList.contains('opt-dark')) roast = 'dark';
-                    addCoffee(roast); // 这里调用 addCoffee
+                    addCoffee(roast);
                     return;
                 }
 
@@ -863,7 +856,6 @@
             scroller.innerHTML = '';
             renderSearchCard(searchData);
             
-            // 安全机制：如果数据库为空，自动初始化一张默认卡片
             if (allCoffeesCache.length === 0) {
                 await addCoffee('medium');
             } else {
@@ -872,7 +864,10 @@
             }
 
             if (allCoffeesCache.length > 0) {
-                scroller.scrollLeft = CARD_FULL_WIDTH - 20; 
+                // [修复核心] 延迟 100ms 设置滚动位置，防止 PWA 启动时的布局死锁
+                setTimeout(() => {
+                    scroller.scrollLeft = CARD_FULL_WIDTH - 20; 
+                }, 100);
             }
             
             setupDelegation();
@@ -887,7 +882,6 @@
         }
     }
 
-    // 修改：将 label 改回 div，但是内部保留 label 机制，或者直接用 label
     function renderSearchCard(data) {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
@@ -899,7 +893,6 @@
         if(data && data.imageData) { src = URL.createObjectURL(data.imageData); hasImg = true; }
         if(hasImg) wrapper.classList.add('has-image');
 
-        // 使用 label 包裹 input，原生支持点击触发
         wrapper.innerHTML = `
             <div class="card">
                 <div class="card-front">
@@ -992,9 +985,24 @@
         scroller.appendChild(wrapper);
     }
 
+    // --- 核心修复 3：统一动画计算 ---
+    let lastScrollLeft = -1;
     function animateCards() {
-        const wrappers = scroller.children;
+        if(!scroller) {
+            requestAnimationFrame(animateCards);
+            return;
+        }
+        
         const scrollLeft = scroller.scrollLeft;
+        
+        // 性能优化：静止时不计算
+        if (scrollLeft === lastScrollLeft) {
+            requestAnimationFrame(animateCards);
+            return;
+        }
+        lastScrollLeft = scrollLeft;
+
+        const wrappers = scroller.children;
         const viewportWidth = window.innerWidth;
         const center = viewportWidth / 2;
         
@@ -1014,6 +1022,7 @@
             const dist = Math.abs(center - cardCenterX);
             const normalizedDist = dist / (viewportWidth * 0.6); 
             
+            // 统一的物理公式
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
