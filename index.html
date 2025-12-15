@@ -114,6 +114,7 @@
             opacity: 0; 
             transition: opacity 0.6s ease-out;
             will-change: opacity, scroll-position;
+            overscroll-behavior-x: contain; /* 新增 */
         }
         .card-scroller.visible { opacity: 1; }
         .card-scroller::-webkit-scrollbar { display: none; }
