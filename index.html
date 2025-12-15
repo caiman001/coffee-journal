@@ -6,10 +6,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
-    <!-- 自定义主屏幕图标（请准备对应尺寸的 PNG，并放在同目录） -->
-    <link rel="apple-touch-icon" sizes="180x180" href="beandance-icon-180.png">
 
-    <title>BeanDance V01 Stable</title>
+    <title>BeanDance V92 Stable</title>
+
+    <!-- 新增：图标引用 -->
+    <!-- 请确保 GitHub 同目录下存在名为 icon.png 的文件 -->
+    <link rel="icon" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+
     <style>
         :root {
             --bg-color: #000000;
@@ -453,44 +457,15 @@
         return Promise.race([dbPromise, timeoutPromise]);
     }
 
-    // 替换原来的 getAllCoffees
-function getAllCoffees() {
-    return new Promise((resolve) => {
-        if (!db) return resolve([]);
-
-        let settled = false;
-
-        try {
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const store = tx.objectStore(STORE_NAME);
-            const req = store.getAll();
-
-            req.onsuccess = (e) => {
-                if (settled) return;
-                settled = true;
-                resolve(e.target.result || []);
-            };
-
-            req.onerror = () => {
-                if (settled) return;
-                settled = true;
-                console.warn('getAllCoffees: request error');
-                resolve([]);
-            };
-
-            tx.onabort = () => {
-                if (settled) return;
-                settled = true;
-                console.warn('getAllCoffees: transaction abort');
-                resolve([]);
-            };
-        } catch (e) {
-            console.error('getAllCoffees sync error', e);
-            resolve([]);
-        }
-    });
-}
-
+    function getAllCoffees() {
+        return new Promise((resolve) => {
+            if (!db) return resolve([]);
+            try {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result);
+            } catch(e) { resolve([]); }
+        });
+    }
 
     function scheduleSave(key, fn) {
         if (!db) return; 
