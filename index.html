@@ -7,13 +7,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BeanDance">
 
-    <title>BeanDance V92 Stable</title>
+    <meta name="theme-color" content="#000000">
 
-    <!-- 新增：图标引用 -->
-    <!-- 请确保 GitHub 同目录下存在名为 icon.png 的文件 -->
-    <link rel="icon" type="image/png" href="icon.png?v=92">
-<link rel="apple-touch-icon" sizes="180x180" href="icon.png?v=92">
-<link rel="shortcut icon" href="icon.png?v=92">
+    <title>BeanDance</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon.png?v=100">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.png?v=100">
+    <link rel="shortcut icon" href="icon.png?v=100">
 
 
     <style>
@@ -138,6 +139,28 @@
         }
         .card-wrapper.active { z-index: 100; }
 
+        /* --- 烘焙度色彩主题 --- */
+        .card-wrapper {
+            --roast: rgba(255,255,255,0.7);
+            --roast-glow: rgba(255,255,255,0.05);
+            --roast-stream: rgba(255,255,255,0.3);
+        }
+        .card-wrapper.roast-light {
+            --roast: #E8C39E;
+            --roast-glow: rgba(232,195,158,0.26);
+            --roast-stream: rgba(232,195,158,0.55);
+        }
+        .card-wrapper.roast-medium {
+            --roast: #C68B59;
+            --roast-glow: rgba(198,139,89,0.26);
+            --roast-stream: rgba(198,139,89,0.55);
+        }
+        .card-wrapper.roast-dark {
+            --roast: #8C5A3C;
+            --roast-glow: rgba(140,90,60,0.3);
+            --roast-stream: rgba(140,90,60,0.6);
+        }
+
         .card {
             position: relative; width: 100%; height: 100%;
             transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -161,7 +184,7 @@
 
         .card-front::after, .card-back::after {
             content: ''; position: absolute; inset: 0; border-radius: 40px; padding: 1px;
-            background: conic-gradient(from var(--angle), transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
+            background: conic-gradient(from var(--angle), transparent 40%, var(--roast-stream) 50%, transparent 60%);
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor; mask-composite: exclude;
             pointer-events: none; z-index: 10;
@@ -171,7 +194,15 @@
 
         .card-front { overflow: hidden; z-index: 2; transform: rotateY(0deg) translateZ(0); }
         
-        .bg-image { 
+        /* 无图时的烘焙度色调空状态 */
+        .bg-placeholder {
+            position: absolute; inset: 0; z-index: 0;
+            background:
+                radial-gradient(130% 90% at 50% -10%, var(--roast-glow) 0%, transparent 70%),
+                linear-gradient(200deg, var(--roast-glow) 0%, transparent 60%);
+        }
+
+        .bg-image {
             position: absolute; 
             top: -1%; left: -1%; width: 102%; height: 102%; 
             object-fit: cover; 
@@ -222,9 +253,10 @@
             line-height: 1.1; letter-spacing: -0.5px;
             text-shadow: 0 4px 20px rgba(0,0,0,0.8);
         }
-        .card-content p { 
+        .card-content p {
             margin: 8px 0 0 0; font-size: 13px; letter-spacing: 2px; font-weight: 500;
-            color: rgba(255,255,255,0.7); text-transform: uppercase;
+            color: var(--roast); text-transform: uppercase;
+            font-variant-numeric: tabular-nums;
         }
 
         /* --- 上传按钮优化开始 --- */
@@ -272,10 +304,18 @@
             transform: rotateY(180deg); z-index: 1;
             background: var(--glass-bg);
             backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%);
-            padding: 50px 30px; 
+            padding: 44px 30px 30px;
             display: flex; flex-direction: column; color: white;
             border: 1px solid rgba(255,255,255,0.1);
         }
+
+        .back-scroll {
+            flex: 1; min-height: 0;
+            overflow-y: auto;
+            scrollbar-width: none;
+            margin-bottom: 14px;
+        }
+        .back-scroll::-webkit-scrollbar { display: none; }
 
         .title-input-group {
             margin-bottom: 30px; text-align: center;
@@ -292,7 +332,7 @@
         .data-list { display: flex; flex-direction: column; gap: 0; width: 100%; margin-bottom: 20px; }
         .data-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.08); height: 24px;
+            padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.08); height: 24px;
         }
         .data-label { font-size: 15px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px; }
         .data-value-group { display: flex; align-items: center; justify-content: flex-end; width: 140px; }
@@ -303,8 +343,61 @@
             padding: 0; margin: 0;
         }
         .data-unit {
-            font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500; 
-            width: 25px; text-align: right; padding-left: 0; margin-left: 5px; flex-shrink: 0; 
+            font-size: 14px; color: rgba(255,255,255,0.4); font-weight: 500;
+            width: 25px; text-align: right; padding-left: 0; margin-left: 5px; flex-shrink: 0;
+        }
+
+        .data-input { caret-color: var(--roast); }
+        .data-static {
+            font-size: 20px; font-weight: 600; color: var(--roast);
+            font-variant-numeric: tabular-nums;
+        }
+        .data-input.date-input {
+            font-size: 15px; font-weight: 500;
+            color-scheme: dark;
+            -webkit-appearance: none; appearance: none;
+        }
+        .data-input.date-input::-webkit-calendar-picker-indicator { opacity: 0.4; }
+
+        .roast-picker { display: flex; gap: 12px; justify-content: flex-end; align-items: center; }
+        .roast-dot {
+            width: 22px; height: 22px; border-radius: 50%;
+            border: 2px solid transparent; cursor: pointer;
+            opacity: 0.35; transition: all 0.2s; box-sizing: border-box;
+        }
+        .roast-dot.light { background: #E8C39E; }
+        .roast-dot.medium { background: #C68B59; }
+        .roast-dot.dark { background: #8C5A3C; }
+        .roast-dot.selected { opacity: 1; border-color: rgba(255,255,255,0.9); transform: scale(1.1); }
+
+        /* --- 冲煮历史 --- */
+        .btn-brew {
+            width: 100%; margin: 0 0 14px; padding: 13px 0;
+            background: transparent; border: 1px solid var(--roast);
+            color: var(--roast); border-radius: 24px;
+            font-size: 13px; font-weight: 600; letter-spacing: 1px;
+            cursor: pointer; font-family: inherit;
+            transition: background 0.2s;
+        }
+        .btn-brew:active { background: var(--roast-glow); }
+
+        .brew-list { margin-top: 2px; }
+        .brew-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 13px; color: rgba(255,255,255,0.55);
+            font-variant-numeric: tabular-nums;
+        }
+        .brew-date { color: rgba(255,255,255,0.35); margin-right: 10px; flex-shrink: 0; }
+        .brew-params { flex: 1; text-align: right; margin-right: 12px; }
+        .brew-del {
+            color: rgba(255,255,255,0.25); font-size: 17px; padding: 0 4px;
+            cursor: pointer; line-height: 1;
+        }
+        .brew-del:active { color: #FF453A; }
+        .brew-empty {
+            padding: 14px 0 4px; font-size: 12px; letter-spacing: 1px;
+            color: rgba(255,255,255,0.25); text-align: center;
         }
 
         .action-row { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
@@ -412,15 +505,64 @@
 </div>
 
 <script>
-    const DB_NAME = 'BeanDance_V46_Stable'; 
-    const DB_VERSION = 1; 
+    const DB_NAME = 'BeanDance_V46_Stable';
+    const DB_VERSION = 1;
     const STORE_NAME = 'coffees';
-    const SEARCH_BG_ID = 0; 
+    const SEARCH_BG_ID = 0;
     const METADATA_ID = -1;
-    const CARD_FULL_WIDTH = 384; 
-    
+    const CARD_FULL_WIDTH = 384;
+    const ROASTS = ['light', 'medium', 'dark'];
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        });
+    }
+
+    function escapeHtml(str) {
+        return String(str ?? '').replace(/[&<>"']/g, ch => (
+            {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]
+        ));
+    }
+
+    function normalizeBean(b) {
+        if (!Array.isArray(b.brews)) b.brews = [];
+        if (typeof b.roastDate !== 'string') b.roastDate = '';
+        if (!ROASTS.includes(b.roast)) b.roast = 'medium';
+        return b;
+    }
+
+    function ratioText(powder, liquid) {
+        const p = parseFloat(powder), l = parseFloat(liquid);
+        if (!p || !l || p <= 0 || l <= 0) return '—';
+        return '1 : ' + (l / p).toFixed(1);
+    }
+
+    function beanDays(roastDate) {
+        if (!roastDate) return null;
+        const t = new Date(roastDate + 'T00:00:00').getTime();
+        if (isNaN(t)) return null;
+        const d = Math.floor((Date.now() - t) / 86400000);
+        return d >= 0 ? d : null;
+    }
+
+    function frontSubtitle(b) {
+        const parts = [b.roast.toUpperCase()];
+        const r = ratioText(b.powder, b.liquid);
+        if (r !== '—') parts.push(r.replace(/\s/g, ''));
+        const days = beanDays(b.roastDate);
+        if (days !== null) parts.push('DAY ' + days);
+        return parts.join(' · ');
+    }
+
+    function fmtBrewDate(ts) {
+        const d = new Date(ts);
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+
     let db;
     let allCoffeesCache = [];
+    let searchBgBlob = null;
     let appMetadata = { title: 'BeanDance', author: 'by CAIMAN' }; 
     
     let debounceMap = new Map();
@@ -522,38 +664,35 @@
         } catch(e) { console.error(e); }
     }
 
-    async function addCoffee(roast, overrideData = null) {
-        if (!db) { 
-            const tempId = Date.now();
-            let newCoffee = overrideData || {
-                id: tempId, name: 'New Coffee', 
-                powder: '18', liquid: '36', time: '25', grind: '2.0', 
-                roast: roast || 'medium', imageData: null, created: Date.now()
-            };
-            if(overrideData) delete newCoffee.id;
+    function addCoffee(roast, overrideData = null) {
+        let newCoffee = overrideData || {
+            name: 'New Coffee',
+            powder: '18', liquid: '36', time: '25', grind: '2.0',
+            roast: roast || 'medium', roastDate: '', brews: [],
+            imageData: null, created: Date.now()
+        };
+        if (overrideData) delete newCoffee.id;
+        normalizeBean(newCoffee);
+
+        if (!db) {
+            newCoffee.id = Date.now();
             allCoffeesCache.push(newCoffee);
             renderSingleCard(newCoffee, true);
-            resetAddMenu();
-            return;
+            if (!overrideData) resetAddMenu();
+            return Promise.resolve(newCoffee.id);
         }
 
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        
-        let newCoffee = overrideData || {
-            name: 'New Coffee', 
-            powder: '18', liquid: '36', time: '25', grind: '2.0', 
-            roast: roast || 'medium', imageData: null, created: Date.now()
-        };
-        
-        if(overrideData) delete newCoffee.id;
-
-        store.add(newCoffee).onsuccess = (e) => {
-            newCoffee.id = e.target.result;
-            allCoffeesCache.push(newCoffee);
-            renderSingleCard(newCoffee, true);
-            if(!overrideData) resetAddMenu();
-        };
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            store.add(newCoffee).onsuccess = (e) => {
+                newCoffee.id = e.target.result;
+                allCoffeesCache.push(newCoffee);
+                renderSingleCard(newCoffee, true);
+                if (!overrideData) resetAddMenu();
+                resolve(newCoffee.id);
+            };
+        });
     }
 
     function resetAddMenu() {
@@ -591,7 +730,7 @@
             if(img && img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
             card.style.transform = 'scale(0) translateY(50px)';
             card.style.opacity = '0';
-            setTimeout(() => card.remove(), 400);
+            setTimeout(() => { card.remove(); wakeAnim(); }, 400);
         }
     }
 
@@ -602,6 +741,7 @@
         
         processImage(file).then(blob => {
             if (id === SEARCH_BG_ID) {
+                searchBgBlob = blob;
                 saveToDB(SEARCH_BG_ID, { imageData: blob });
                 updateImageDOM(document.getElementById('search-wrapper'), blob);
             } else {
@@ -656,22 +796,48 @@
         });
     }
 
-    function handleExport() {
-        const cleanData = allCoffeesCache.map(c => {
-            const { imageData, ...rest } = c; 
-            return rest;
+    function blobToDataURL(blob) {
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = () => reject(new Error('Read Error'));
+            r.readAsDataURL(blob);
         });
-        const jsonStr = JSON.stringify(cleanData, null, 2);
-        const blob = new Blob([jsonStr], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `BeanDance_Backup_${new Date().toISOString().slice(0,10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('EXPORTED');
+    }
+
+    async function dataURLToBlob(url) {
+        return (await fetch(url)).blob();
+    }
+
+    async function handleExport() {
+        showToast('EXPORTING...');
+        try {
+            const beans = [];
+            for (const c of allCoffeesCache) {
+                const { imageData, ...rest } = c;
+                beans.push({ ...rest, image: imageData ? await blobToDataURL(imageData) : null });
+            }
+            const payload = {
+                app: 'BeanDance', version: 2,
+                exportedAt: new Date().toISOString(),
+                meta: appMetadata,
+                searchBg: searchBgBlob ? await blobToDataURL(searchBgBlob) : null,
+                beans
+            };
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `BeanDance_Backup_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('EXPORTED');
+        } catch (err) {
+            console.error(err);
+            showToast('ERROR');
+        }
         resetAddMenu();
     }
 
@@ -682,16 +848,38 @@
         reader.onload = async (ev) => {
             try {
                 const data = JSON.parse(ev.target.result);
-                if(Array.isArray(data)) {
-                    showToast(`IMPORTING ${data.length}...`);
-                    for(let item of data) {
-                        await addCoffee(item.roast || 'medium', item);
+                // 兼容 v1（裸数组、无图）和 v2（含图完整备份）
+                const beans = Array.isArray(data) ? data
+                    : (data && Array.isArray(data.beans)) ? data.beans : null;
+                if (!beans) { alert("Invalid JSON"); resetAddMenu(); return; }
+
+                showToast(`IMPORTING ${beans.length}...`);
+
+                if (!Array.isArray(data)) {
+                    if (data.meta) {
+                        appMetadata = { ...appMetadata, ...data.meta };
+                        saveToDB(METADATA_ID, appMetadata);
+                        const titleInput = document.querySelector('.app-brand-title-input');
+                        const authorInput = document.querySelector('.app-brand-author-input');
+                        if (titleInput) titleInput.value = appMetadata.title;
+                        if (authorInput) authorInput.value = appMetadata.author;
                     }
-                    showToast('DONE');
-                } else {
-                    alert("Invalid JSON");
+                    if (data.searchBg) {
+                        searchBgBlob = await dataURLToBlob(data.searchBg);
+                        saveToDB(SEARCH_BG_ID, { imageData: searchBgBlob });
+                        updateImageDOM(document.getElementById('search-wrapper'), searchBgBlob);
+                    }
                 }
+
+                for (const item of beans) {
+                    const { image, ...rest } = item;
+                    const bean = { ...rest };
+                    if (image) bean.imageData = await dataURLToBlob(image);
+                    await addCoffee(bean.roast || 'medium', bean);
+                }
+                showToast('DONE');
             } catch(err) {
+                console.error(err);
                 alert("Import Failed");
             }
             resetAddMenu();
@@ -799,6 +987,50 @@
             const wrapper = t.closest('.card-wrapper');
             if (!wrapper || wrapper.id === 'add-card-wrapper') return;
 
+            const dot = t.closest('.roast-dot');
+            if (dot) {
+                const id = parseInt(wrapper.dataset.id);
+                const bean = allCoffeesCache.find(c => c.id === id);
+                if (bean && dot.dataset.roast !== bean.roast) {
+                    wrapper.classList.remove(`roast-${bean.roast}`);
+                    bean.roast = dot.dataset.roast;
+                    wrapper.classList.add(`roast-${bean.roast}`);
+                    wrapper.querySelectorAll('.roast-dot').forEach(d => d.classList.toggle('selected', d === dot));
+                    wrapper.querySelector('.front-sub').innerText = frontSubtitle(bean);
+                    scheduleSave(`coffee-${id}`, () => saveToDB(id, bean));
+                }
+                return;
+            }
+
+            if (t.closest('.btn-brew')) {
+                const id = parseInt(wrapper.dataset.id);
+                const bean = allCoffeesCache.find(c => c.id === id);
+                if (bean) {
+                    bean.brews.push({
+                        date: Date.now(),
+                        powder: bean.powder, liquid: bean.liquid,
+                        time: bean.time, grind: bean.grind
+                    });
+                    renderBrews(wrapper, bean);
+                    saveToDB(id, bean);
+                    showToast('LOGGED ☕');
+                }
+                return;
+            }
+
+            const brewDel = t.closest('.brew-del');
+            if (brewDel) {
+                const id = parseInt(wrapper.dataset.id);
+                const bean = allCoffeesCache.find(c => c.id === id);
+                const idx = parseInt(brewDel.closest('.brew-item').dataset.idx);
+                if (bean && !isNaN(idx)) {
+                    bean.brews.splice(idx, 1);
+                    renderBrews(wrapper, bean);
+                    saveToDB(id, bean);
+                }
+                return;
+            }
+
             if (t.closest('input')) return;
 
             if (t.closest('.btn-delete')) {
@@ -849,6 +1081,7 @@
                     updateCoffee(id, 'name', input.value);
                 } else if(input.dataset.field) {
                     updateCoffee(id, input.dataset.field, input.value);
+                    refreshComputed(wrapper, id, input.dataset.field);
                 }
             }
         });
@@ -858,18 +1091,84 @@
                 const wrapper = e.target.closest('.card-wrapper');
                 const id = parseInt(wrapper.dataset.id);
                 handleImageUpload(e, id);
+                return;
+            }
+            // iOS 的日期选择器只可靠触发 change
+            if (e.target.dataset && e.target.dataset.field === 'roastDate') {
+                const wrapper = e.target.closest('.card-wrapper');
+                const id = parseInt(wrapper.dataset.id);
+                if (id > 0) {
+                    updateCoffee(id, 'roastDate', e.target.value);
+                    refreshComputed(wrapper, id, 'roastDate');
+                }
             }
         });
     }
 
+    // 粉量/液重/烘焙日期变化时，刷新比例行和正面副标题
+    function refreshComputed(wrapper, id, field) {
+        const bean = allCoffeesCache.find(c => c.id === id);
+        if (!bean) return;
+        if (field === 'powder' || field === 'liquid') {
+            const rd = wrapper.querySelector('.ratio-display');
+            if (rd) rd.innerText = ratioText(bean.powder, bean.liquid);
+        }
+        const sub = wrapper.querySelector('.front-sub');
+        if (sub) sub.innerText = frontSubtitle(bean);
+    }
+
+    // ?demo 模式：载入内存示例数据，不读写数据库（用于展示/截图）
+    function getDemoBeans() {
+        const day = 86400000, now = Date.now();
+        const iso = (t) => new Date(t).toISOString().slice(0, 10);
+        return [
+            { id: 1, name: 'Yirgacheffe 耶加雪菲', powder: '15', liquid: '225', time: '150', grind: '6.0',
+              roast: 'light', roastDate: iso(now - 12 * day), imageData: null, created: now,
+              brews: [
+                  { date: now - 2 * day, powder: '15', liquid: '225', time: '145', grind: '6.0' },
+                  { date: now - day, powder: '15', liquid: '230', time: '150', grind: '6.2' }
+              ] },
+            { id: 2, name: 'Colombia 花月夜', powder: '18', liquid: '36', time: '28', grind: '2.0',
+              roast: 'medium', roastDate: iso(now - 20 * day), imageData: null, created: now,
+              brews: [ { date: now - day, powder: '18', liquid: '36', time: '28', grind: '2.0' } ] },
+            { id: 3, name: 'Mandheling 曼特宁', powder: '20', liquid: '40', time: '30', grind: '1.8',
+              roast: 'dark', roastDate: '', brews: [], imageData: null, created: now }
+        ].map(normalizeBean);
+    }
+
     async function initApp() {
         try {
-            await initDB(); 
+            const q = new URLSearchParams(location.search);
+            if (q.has('demo')) {
+                allCoffeesCache = getDemoBeans();
+                scroller.innerHTML = '';
+                renderSearchCard(null);
+                allCoffeesCache.forEach(c => renderSingleCard(c));
+                renderAddButton();
+                const cardIdx = parseInt(q.get('card')) || 1;
+                setupDelegation();
+                const w = document.querySelector(`.card-wrapper[data-id="${cardIdx}"]`);
+                if (w) {
+                    if (q.has('flip')) w.classList.add('flipped');
+                    const center = () => {
+                        scroller.scrollLeft = w.offsetLeft + w.offsetWidth / 2 - window.innerWidth / 2;
+                        layoutCards();
+                        if (q.has('flip')) w.classList.add('flipped');
+                    };
+                    center();
+                    setTimeout(center, 400);
+                }
+                layoutCards();
+                return;
+            }
+
+            await initDB();
             const allData = await getAllCoffees();
             const meta = allData.find(c => c.id === METADATA_ID);
             if(meta) { appMetadata.title = meta.title; appMetadata.author = meta.author; }
             const searchData = allData.find(c => c.id === SEARCH_BG_ID);
-            allCoffeesCache = allData.filter(c => c.id > 0);
+            if (searchData && searchData.imageData) searchBgBlob = searchData.imageData;
+            allCoffeesCache = allData.filter(c => c.id > 0).map(normalizeBean);
             
             scroller.innerHTML = '';
             renderSearchCard(searchData);
@@ -881,7 +1180,7 @@
             }
             
             setupDelegation();
-            requestAnimationFrame(animateCards);
+            layoutCards();
 
         } catch (e) {
             console.error("Init Error", e);
@@ -911,8 +1210,8 @@
                     <img id="img-${SEARCH_BG_ID}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
                     <div class="card-content">
-                        <input type="text" class="app-brand-title-input" value="${appMetadata.title}">
-                        <input type="text" class="app-brand-author-input" value="${appMetadata.author}">
+                        <input type="text" class="app-brand-title-input" value="${escapeHtml(appMetadata.title)}">
+                        <input type="text" class="app-brand-author-input" value="${escapeHtml(appMetadata.author)}">
                     </div>
                 </div>
                 <div class="card-back" style="display:none"></div>
@@ -921,10 +1220,11 @@
     }
 
     function renderSingleCard(data, isInsert = false) {
+        normalizeBean(data);
         const wrapper = document.createElement('div');
         wrapper.className = `card-wrapper roast-${data.roast}`;
         wrapper.setAttribute('data-id', data.id);
-        
+
         let src = '';
         let hasImg = false;
         if(data.imageData) { src = URL.createObjectURL(data.imageData); hasImg = true; }
@@ -939,28 +1239,59 @@
                     <img id="img-${data.id}" class="bg-image" src="${src}" style="opacity: ${hasImg ? 1 : 0}">
                     <div class="overlay-gradient"></div>
                     <div class="card-content">
-                        <h2>${data.name}</h2>
-                        <p>${data.roast.toUpperCase()}</p>
+                        <h2>${escapeHtml(data.name)}</h2>
+                        <p class="front-sub">${escapeHtml(frontSubtitle(data))}</p>
                     </div>
                 </div>
                 <div class="card-back">
-                    <div class="title-input-group"><input class="title-input" type="text" value="${data.name}" placeholder="Name"></div>
-                    <div class="data-list">
-                        <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" data-field="powder" value="${data.powder}"><span class="data-unit">g</span></div></div>
-                        <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" data-field="liquid" value="${data.liquid}"><span class="data-unit">g</span></div></div>
-                        <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" data-field="time" value="${data.time}"><span class="data-unit">s</span></div></div>
-                        <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="text" step="0.1" data-field="grind" value="${grind}"><span class="data-unit">m</span></div></div>
+                    <div class="title-input-group"><input class="title-input" type="text" value="${escapeHtml(data.name)}" placeholder="Name"></div>
+                    <div class="back-scroll">
+                        <div class="data-list">
+                            <div class="data-row"><span class="data-label">粉量</span><div class="data-value-group"><input class="data-input" type="number" data-field="powder" value="${escapeHtml(data.powder)}"><span class="data-unit">g</span></div></div>
+                            <div class="data-row"><span class="data-label">液重</span><div class="data-value-group"><input class="data-input" type="number" data-field="liquid" value="${escapeHtml(data.liquid)}"><span class="data-unit">g</span></div></div>
+                            <div class="data-row"><span class="data-label">比例</span><div class="data-value-group"><span class="data-static ratio-display">${ratioText(data.powder, data.liquid)}</span></div></div>
+                            <div class="data-row"><span class="data-label">时间</span><div class="data-value-group"><input class="data-input" type="number" data-field="time" value="${escapeHtml(data.time)}"><span class="data-unit">s</span></div></div>
+                            <div class="data-row"><span class="data-label">研磨度</span><div class="data-value-group"><input class="data-input" type="text" data-field="grind" value="${escapeHtml(grind)}"><span class="data-unit">m</span></div></div>
+                            <div class="data-row"><span class="data-label">烘焙日期</span><div class="data-value-group"><input class="data-input date-input" type="date" data-field="roastDate" value="${escapeHtml(data.roastDate)}"></div></div>
+                            <div class="data-row"><span class="data-label">烘焙度</span><div class="roast-picker">
+                                <span class="roast-dot light ${data.roast === 'light' ? 'selected' : ''}" data-roast="light"></span>
+                                <span class="roast-dot medium ${data.roast === 'medium' ? 'selected' : ''}" data-roast="medium"></span>
+                                <span class="roast-dot dark ${data.roast === 'dark' ? 'selected' : ''}" data-roast="dark"></span>
+                            </div></div>
+                        </div>
+                        <div class="brew-list"></div>
                     </div>
+                    <button class="btn-brew">☕ 记一杯</button>
                     <div class="action-row"><button class="btn-text btn-delete">Delete</button><button class="btn-text btn-done">Done</button></div>
                 </div>
             </div>`;
-        
+
+        renderBrews(wrapper, data);
+
         if (isInsert) {
             scroller.insertBefore(wrapper, document.getElementById('add-card-wrapper'));
             requestAnimationFrame(() => wrapper.scrollIntoView({behavior:'smooth', inline:'center'}));
         } else {
             scroller.appendChild(wrapper);
         }
+        wakeAnim();
+    }
+
+    function renderBrews(wrapper, bean) {
+        const list = wrapper.querySelector('.brew-list');
+        if (!list) return;
+        if (!bean.brews.length) {
+            list.innerHTML = '<div class="brew-empty">还没有冲煮记录</div>';
+            return;
+        }
+        list.innerHTML = bean.brews.slice().reverse().map((b, i) => {
+            const idx = bean.brews.length - 1 - i;
+            return `<div class="brew-item" data-idx="${idx}">
+                <span class="brew-date">${fmtBrewDate(b.date)}</span>
+                <span class="brew-params">${escapeHtml(b.powder)}g → ${escapeHtml(b.liquid)}g · ${escapeHtml(b.time)}s · ${escapeHtml(b.grind)}</span>
+                <span class="brew-del">×</span>
+            </div>`;
+        }).join('');
     }
 
     function renderAddButton() {
@@ -989,28 +1320,21 @@
         scroller.appendChild(wrapper);
     }
 
-    function animateCards() {
-        const wrappers = scroller.children;
-        const scrollLeft = scroller.scrollLeft;
+    // 布局计算改为滚动驱动：静止时不再运行 rAF，省电
+    function layoutCards() {
         const viewportWidth = window.innerWidth;
         const center = viewportWidth / 2;
-        
-        const itemWidth = 384; 
-        const halfCard = 180; 
-        const startOffset = (viewportWidth - 360) / 2; 
 
-        let visibleIndex = 0;
-
-        for (let i = 0; i < wrappers.length; i++) {
-            const card = wrappers[i];
+        for (const card of scroller.children) {
             if (card.style.display === 'none') continue;
-            
-            const cardCenterX = startOffset + visibleIndex * itemWidth - scrollLeft + halfCard;
-            visibleIndex++; 
+
+            // 缩放以中心为原点，不影响几何中心，rect 中心是稳定的
+            const rect = card.getBoundingClientRect();
+            const cardCenterX = rect.left + rect.width / 2;
 
             const dist = Math.abs(center - cardCenterX);
-            const normalizedDist = dist / (viewportWidth * 0.6); 
-            
+            const normalizedDist = dist / (viewportWidth * 0.6);
+
             const scale = Math.max(0.88, 1 - Math.pow(normalizedDist, 2) * 0.15);
             const opacity = Math.max(0.4, 1 - Math.pow(normalizedDist, 1.5) * 0.7);
 
@@ -1019,14 +1343,35 @@
 
             if (dist < 150) {
                 card.classList.add('active');
-                card.style.opacity = 1; 
+                card.style.opacity = 1;
             } else {
                 card.classList.remove('active');
                 if(card.classList.contains('flipped')) card.classList.remove('flipped');
             }
         }
-        requestAnimationFrame(animateCards);
     }
+
+    let animRafId = null;
+    let animSettleTimer = null;
+
+    function animPump() {
+        layoutCards();
+        animRafId = requestAnimationFrame(animPump);
+    }
+
+    function wakeAnim() {
+        if (animRafId === null) animPump();
+        clearTimeout(animSettleTimer);
+        // 滚动停止后补跑一小段让 snap 动画收尾，然后彻底停止
+        animSettleTimer = setTimeout(() => {
+            cancelAnimationFrame(animRafId);
+            animRafId = null;
+            layoutCards();
+        }, 250);
+    }
+
+    scroller.addEventListener('scroll', wakeAnim, { passive: true });
+    window.addEventListener('resize', wakeAnim);
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initApp);
