@@ -1,0 +1,989 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BeanDance 灵动岛打印机小样</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+        --paper: #f6f0e0;
+        --paper-dark: #ede4cb;
+        --ink: #3a3226;
+        --ink-faint: #6b5f4b;
+        --amber-text: #47230a;
+        --amber-text-dim: rgba(88,46,12,0.6);
+        --island-w: 126px;
+        --island-h: 37px;
+        --printer-w: min(322px, calc(100vw - 40px));
+        --printer-h: 359px;
+        --note-w: 180px;
+        --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    }
+
+    body {
+        min-height: 100dvh;
+        background: #d4dadd;
+        display: flex; justify-content: center; align-items: center;
+        font-family: -apple-system, "SF Pro Display", sans-serif;
+        user-select: none; -webkit-user-select: none;
+        touch-action: manipulation;
+    }
+
+    .phone {
+        position: relative;
+        width: 100vw; height: 100dvh;
+        overflow: hidden;
+        background:
+            radial-gradient(120% 70% at 50% -10%, #ffffff 0%, rgba(255,255,255,0) 55%),
+            radial-gradient(140% 100% at 50% 118%, rgba(140,155,160,0.4) 0%, transparent 55%),
+            linear-gradient(175deg, #eef2f4 0%, #e4eaec 55%, #d9e0e3 100%);
+    }
+    @media (min-width: 560px) {
+        .phone {
+            width: 393px; height: 852px;
+            border-radius: 55px;
+            border: 9px solid #131315;
+            outline: 2.5px solid #3f4246;
+            box-shadow: 0 40px 90px rgba(0,0,0,0.55);
+        }
+    }
+
+    .statusbar {
+        position: absolute; top: 0; left: 0; right: 0;
+        height: 54px; z-index: 30;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 16px 32px 0;
+        color: #16181c;
+        font-size: 15px; font-weight: 600;
+        pointer-events: none;
+    }
+    .sb-icons { display: flex; align-items: center; gap: 7px; }
+    .sig { display: flex; align-items: flex-end; gap: 1.5px; }
+    .sig i { width: 3px; background: currentColor; border-radius: 1px; display: block; }
+    .sig i:nth-child(1) { height: 4px; } .sig i:nth-child(2) { height: 6px; }
+    .sig i:nth-child(3) { height: 8px; } .sig i:nth-child(4) { height: 10px; }
+    .batt { width: 25px; height: 12px; border: 1px solid rgba(22,24,28,0.45); border-radius: 4px; position: relative; }
+    .batt::before { content: ''; position: absolute; inset: 1.5px; right: 6px; background: currentColor; border-radius: 2px; }
+    .batt::after { content: ''; position: absolute; right: -3.5px; top: 3px; width: 1.8px; height: 5px; background: rgba(22,24,28,0.45); border-radius: 0 2px 2px 0; }
+
+    /* ============ 灵动岛 ============ */
+    .island {
+        position: absolute; top: 12px; left: 50%;
+        transform: translateX(-50%);
+        width: var(--island-w); height: var(--island-h);
+        border-radius: 22px;
+        background: #000;
+        z-index: 80;
+        cursor: pointer;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(40,50,55,0.35);
+        transition:
+            width 0.55s cubic-bezier(0.34, 1.4, 0.64, 1),
+            height 0.55s cubic-bezier(0.34, 1.4, 0.64, 1),
+            border-radius 0.45s ease,
+            background-color 0.25s ease 0.2s,
+            box-shadow 0.25s ease 0.2s;
+    }
+    .island:active { transform: translateX(-50%) scale(0.97); }
+    .island.open {
+        width: var(--printer-w);
+        height: var(--printer-h);
+        border-radius: 34px;
+        background: transparent;
+        box-shadow: none;
+        overflow: visible;
+        cursor: default;
+    }
+
+    .idle-face {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px;
+        opacity: 1; transition: opacity 0.2s ease 0.15s;
+        pointer-events: none;
+    }
+    .island.open .idle-face { opacity: 0; transition: opacity 0.1s; }
+    .idle-face .cup { font-size: 16px; }
+    .idle-face .n {
+        font-size: 13px; font-weight: 700;
+        color: #ffb54d; letter-spacing: 1px;
+        text-shadow: 0 0 8px rgba(255,150,40,0.6);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ============ 打印机 ============ */
+    .printer {
+        position: absolute; inset: 0;
+        opacity: 0; transform: scale(0.94);
+        transition: opacity 0.28s ease 0.2s, transform 0.42s cubic-bezier(0.34, 1.4, 0.64, 1) 0.16s;
+        pointer-events: none;
+        filter: drop-shadow(0 24px 28px rgba(52,62,68,0.42)) drop-shadow(0 6px 8px rgba(52,62,68,0.25));
+    }
+    .island.open .printer { opacity: 1; transform: scale(1); pointer-events: auto; }
+    .printer svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+    /* PRINT 键帽按压 */
+    #keycap { transform-box: fill-box; transform-origin: center; transition: transform 0.08s ease; }
+    .printer.pressed #keycap { transform: translateY(5px); }
+
+    /* ============ 橙屏（豆单 / 填单双模式） ============ */
+    .orange-hit {
+        position: absolute;
+        left: 7.4%; top: 6.6%; width: 59.2%; height: 58.5%;
+        z-index: 5;
+        padding: 8% 8% 0 9.5%;
+        font-family: "Courier New", Courier, monospace;
+        cursor: pointer;
+        overflow: hidden;
+    }
+    .lcd-status {
+        display: flex; justify-content: space-between;
+        font-size: 9px; letter-spacing: 2px;
+        color: var(--amber-text-dim);
+        margin-bottom: 5px;
+        text-shadow: 0 1px 0 rgba(255,200,120,0.3);
+        mix-blend-mode: multiply;
+    }
+    .lcd-row {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+        line-height: 1.9;
+        color: var(--amber-text-dim);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        cursor: pointer;
+        mix-blend-mode: multiply;
+        text-shadow: 0 1px 0 rgba(255,200,120,0.25);
+    }
+    .lcd-row .cursor { width: 9px; flex-shrink: 0; opacity: 0; }
+    .lcd-row.sel { color: var(--amber-text); text-shadow: 0 1px 0 rgba(255,210,140,0.5); }
+    .lcd-row.sel .cursor { opacity: 1; animation: cursorblink 1.1s steps(1) infinite; }
+    @keyframes cursorblink { 50% { opacity: 0.15; } }
+
+    /* 填单模式（默认屏） */
+    .f-row {
+        display: flex; align-items: center; gap: 7px;
+        margin-bottom: 5px;
+        mix-blend-mode: multiply;
+    }
+    .f-lbl {
+        font-size: 11px; font-weight: 700; letter-spacing: 1px;
+        color: var(--amber-text-dim);
+        width: 40px; flex-shrink: 0;
+    }
+    .f-input {
+        flex: 1; min-width: 0;
+        background: transparent; border: none; outline: none;
+        border-bottom: 2px dashed rgba(74,37,4,0.35);
+        font-family: inherit; font-size: 12.5px; font-weight: 700;
+        color: var(--amber-text);
+        caret-color: var(--amber-text);
+        padding: 2px 0;
+    }
+    .f-input::placeholder { color: rgba(88,46,12,0.35); }
+    .f-input.num { flex: 0 0 52px; text-align: right; }
+    .f-unit { font-size: 11px; color: var(--amber-text-dim); }
+    .f-dots { display: flex; gap: 10px; align-items: center; }
+    .f-dot {
+        width: 16px; height: 16px; border-radius: 50%;
+        border: 2px solid transparent;
+        opacity: 0.4; cursor: pointer;
+        transition: all 0.15s;
+    }
+    .f-dot.sel { opacity: 1; border-color: rgba(74,37,4,0.7); transform: scale(1.12); }
+
+    /* ============ 卡片编辑态（点便签放大修改） ============ */
+    .edit-backdrop {
+        position: absolute; inset: 0; z-index: 600;
+        background: rgba(222,230,233,0.55);
+        backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+        display: flex; align-items: center; justify-content: center;
+        animation: fadein 0.2s ease;
+    }
+    @keyframes fadein { from { opacity: 0; } }
+    .editor {
+        width: min(312px, 86vw);
+        cursor: default;
+        transform: rotate(-0.5deg);
+        filter: drop-shadow(10px 22px 26px rgba(45,40,30,0.4));
+        animation: editorin 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+    @keyframes editorin { from { transform: rotate(-0.5deg) scale(0.7); opacity: 0.4; } }
+    .editor input {
+        font-family: inherit;
+        background: transparent; border: none; outline: none;
+        border-bottom: 2px dashed rgba(58,50,38,0.35);
+        color: var(--ink); font-weight: 700;
+        caret-color: var(--ink);
+        padding: 1px 0;
+    }
+    .editor input::placeholder { color: rgba(58,50,38,0.3); }
+    .e-title { width: 100%; font-size: 17px; text-align: center; letter-spacing: 1px; }
+    .e-origin {
+        width: 100%; font-size: 11px; letter-spacing: 2px; text-align: center;
+        color: var(--ink-faint) !important; margin-top: 5px;
+    }
+    .e-row {
+        display: flex; justify-content: space-between; align-items: center;
+        margin: 8px 0; font-size: 13px;
+    }
+    .e-row .lbl { color: var(--ink-faint); }
+    .e-row input { width: 96px; text-align: right; font-size: 16px; }
+    .e-dots { display: flex; gap: 12px; }
+    .e-dot {
+        width: 20px; height: 20px; border-radius: 50%;
+        border: 2.5px solid transparent;
+        opacity: 0.4; cursor: pointer;
+        transition: all 0.15s;
+    }
+    .e-dot.sel { opacity: 1; border-color: rgba(58,50,38,0.7); transform: scale(1.1); }
+    .e-done {
+        margin-top: 13px; padding: 10px;
+        text-align: center; letter-spacing: 3px; font-weight: 700; font-size: 13px;
+        border: 2px dashed rgba(58,50,38,0.45); border-radius: 9px;
+        cursor: pointer;
+    }
+    .e-done:active { background: rgba(58,50,38,0.08); }
+
+    /* PRINT 键帽命中区（与 SVG 键帽对位） */
+    .purple-hit {
+        position: absolute;
+        left: 71.6%; top: 41.2%; width: 18.8%; height: 20.6%;
+        z-index: 5;
+        border: none; background: transparent;
+        cursor: pointer;
+        border-radius: 12px;
+        font-family: inherit;
+    }
+    .purple-hit:disabled { cursor: default; }
+    .purple-hit:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+    .led {
+        position: absolute;
+        right: 13.5%; top: 76.8%;
+        width: 7px; height: 7px; border-radius: 50%;
+        z-index: 5;
+        background: radial-gradient(circle at 35% 30%, #baffd0, #35d05e 60%, #1d8c3c);
+        box-shadow: 0 0 8px #35d05e, 0 0 16px rgba(53,208,94,0.5);
+        pointer-events: none;
+    }
+    .led.busy {
+        animation: blink 0.25s linear infinite;
+        background: radial-gradient(circle at 35% 30%, #ffe2b0, #ffb340 60%, #c07a10);
+        box-shadow: 0 0 8px #ffb340, 0 0 18px rgba(255,179,64,0.6);
+    }
+    @keyframes blink { 50% { opacity: 0.3; } }
+
+    /* ============ 画布空间 ============ */
+    .canvas { position: absolute; inset: 0; z-index: 5; overflow: hidden; }
+    .canvas-hint {
+        position: absolute; bottom: 14px; left: 0; right: 0;
+        text-align: center;
+        color: rgba(70,80,88,0.55);
+        font-size: 11px; letter-spacing: 2px; line-height: 1.9;
+        pointer-events: none;
+        z-index: 999;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    }
+    .canvas-hint b { color: #c0761c; font-weight: 700; }
+
+    .note {
+        position: absolute;
+        width: var(--note-w);
+        cursor: grab;
+        transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1), filter 0.2s;
+        transform: rotate(var(--tilt, 0deg));
+        filter: drop-shadow(5px 10px 10px rgba(45,40,30,0.28));
+        will-change: left, top;
+    }
+    .note.dragging {
+        cursor: grabbing;
+        transition: filter 0.2s;
+        transform: rotate(0deg) scale(1.04);
+        filter: drop-shadow(10px 20px 22px rgba(45,40,30,0.4));
+    }
+    .note.pop { animation: pop 0.5s cubic-bezier(0.34, 1.6, 0.64, 1); }
+    @keyframes pop { 0% { transform: rotate(var(--tilt)) scale(0.9); } 60% { transform: rotate(var(--tilt)) scale(1.08); } 100% { transform: rotate(var(--tilt)) scale(1); } }
+    .note.clip { overflow: hidden; padding-bottom: 10px; }
+
+    .note-scale {
+        width: 310px;
+        transform: scale(0.581);
+        transform-origin: top left;
+        pointer-events: none;
+    }
+
+    /* ============ 小票 ============ */
+    .receipt {
+        --teeth: 14px;
+        width: 100%;
+        padding: 24px 22px 8px;
+        color: var(--ink);
+        font-family: "Courier New", Courier, monospace;
+        font-size: 13px; line-height: 1.5;
+        background:
+            var(--noise),
+            repeating-linear-gradient(0deg, rgba(58,50,38,0.02) 0 2px, transparent 2px 5px),
+            linear-gradient(118deg, rgba(255,255,255,0.3) 0%, transparent 22%, transparent 75%, rgba(58,50,38,0.06) 100%),
+            linear-gradient(180deg, var(--paper) 0%, var(--paper-dark) 100%);
+        background-blend-mode: multiply, normal, normal, normal;
+        text-shadow: 0 0 0.7px rgba(58,50,38,0.45);
+        position: relative;
+        -webkit-mask:
+            conic-gradient(from -45deg at bottom, transparent, #000 1deg 89deg, transparent 90deg)
+            bottom / var(--teeth) 100% repeat-x;
+        mask:
+            conic-gradient(from -45deg at bottom, transparent, #000 1deg 89deg, transparent 90deg)
+            bottom / var(--teeth) 100% repeat-x;
+    }
+    .receipt-tail { height: 20px; }
+    .receipt.printing { animation: feed 2.2s steps(24, end) both; }
+    @keyframes feed { from { transform: translateY(-101%); } to { transform: translateY(0); } }
+
+    .r-center { text-align: center; }
+    .r-title { font-size: 18px; font-weight: 700; letter-spacing: 4px; }
+    .r-sub { font-size: 9.5px; letter-spacing: 3px; color: var(--ink-faint); }
+    .r-rule { border: none; border-top: 1.6px solid var(--ink); margin: 9px 0; opacity: 0.85; }
+    .r-dots { border: none; border-top: 2px dashed rgba(58,50,38,0.55); margin: 9px 0; }
+    .r-bean { font-size: 17px; font-weight: 700; letter-spacing: 1px; margin: 2px 0; }
+    .r-origin { font-size: 11px; letter-spacing: 2px; color: var(--ink-faint); }
+    .r-row { display: flex; justify-content: space-between; }
+    .r-row .lbl { color: var(--ink-faint); }
+    .r-row .val { font-weight: 700; }
+    .r-small { font-size: 11px; color: var(--ink-faint); }
+    .r-stars { text-align: center; letter-spacing: 6px; color: var(--ink-faint); margin: 7px 0 2px; }
+    .barcode {
+        height: 36px; margin: 9px 6px 4px;
+        background: repeating-linear-gradient(90deg,
+            var(--ink) 0 2px, transparent 2px 5px,
+            var(--ink) 5px 6px, transparent 6px 8px,
+            var(--ink) 8px 12px, transparent 12px 15px,
+            var(--ink) 15px 16px, transparent 16px 21px);
+        opacity: 0.88;
+    }
+    .r-foot { font-size: 11px; letter-spacing: 1px; display: flex; justify-content: space-between; color: var(--ink-faint); padding-bottom: 6px; }
+    .stamp {
+        position: absolute; top: 118px; right: 10px;
+        transform: rotate(10deg);
+        padding: 4px 9px;
+        border: 2.5px double var(--stamp, #b07d3c);
+        border-radius: 6px;
+        color: var(--stamp, #b07d3c);
+        font-size: 12px; font-weight: 800; letter-spacing: 2px;
+        opacity: 0.72;
+        mix-blend-mode: multiply;
+        -webkit-mask-image: radial-gradient(closest-side, #000 55%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.85) 100%);
+        mask-image: radial-gradient(closest-side, #000 55%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.85) 100%);
+    }
+    .roast-band { height: 5px; margin: 0 -22px 11px; background: var(--stamp, #b07d3c); opacity: 0.55; }
+
+    @media (prefers-reduced-motion: reduce) {
+        .receipt.printing { animation-duration: 0.01s; }
+        .led.busy, .lcd-row.sel .cursor { animation: none; }
+        .island, .note, .printer, #keycap { transition-duration: 0.01s; }
+        .note.pop { animation: none; }
+    }
+</style>
+
+<div class="phone" id="phone">
+
+    <div class="statusbar">
+        <span>9:41</span>
+        <span class="sb-icons">
+            <span class="sig"><i></i><i></i><i></i><i></i></span>
+            <span class="batt"></span>
+        </span>
+    </div>
+
+    <div class="canvas" id="canvas">
+        <div class="canvas-hint">拖动便签布置你的咖啡桌 · 按<b>灵动岛</b>呼出打印机</div>
+    </div>
+
+    <div class="island" id="island">
+        <div class="idle-face">
+            <span class="cup">☕</span>
+            <span class="n" id="idleCount">6 BEANS</span>
+        </div>
+        <div class="printer" id="printerBox">
+            <svg viewBox="0 0 600 670" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                    <!-- 高对比镜面铬（金属回归） -->
+                    <linearGradient id="gChrome" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" stop-color="#7d858b"/>
+                        <stop offset="0.045" stop-color="#f4f9fa"/>
+                        <stop offset="0.1" stop-color="#b9c1c5"/>
+                        <stop offset="0.19" stop-color="#ffffff"/>
+                        <stop offset="0.34" stop-color="#9ba4a9"/>
+                        <stop offset="0.47" stop-color="#e8edee"/>
+                        <stop offset="0.56" stop-color="#ffffff"/>
+                        <stop offset="0.7" stop-color="#8d969b"/>
+                        <stop offset="0.84" stop-color="#dde3e5"/>
+                        <stop offset="0.95" stop-color="#737b81"/>
+                        <stop offset="1" stop-color="#666e74"/>
+                    </linearGradient>
+                    <linearGradient id="gChromeV" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#ffffff" stop-opacity="0.6"/>
+                        <stop offset="0.12" stop-color="#ffffff" stop-opacity="0.08"/>
+                        <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+                        <stop offset="0.86" stop-color="#000000" stop-opacity="0.12"/>
+                        <stop offset="1" stop-color="#000000" stop-opacity="0.35"/>
+                    </linearGradient>
+                    <radialGradient id="rTopSheen" cx="0.3" cy="-0.1" r="0.9">
+                        <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+                        <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.1"/>
+                        <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="gOrange" x1="0.08" y1="0" x2="0.32" y2="1">
+                        <stop offset="0" stop-color="#f0a134"/>
+                        <stop offset="0.42" stop-color="#cd7413"/>
+                        <stop offset="1" stop-color="#84470a"/>
+                    </linearGradient>
+                    <radialGradient id="rOrangeGlow" cx="0.38" cy="0.16" r="0.95">
+                        <stop offset="0" stop-color="#ffd493" stop-opacity="0.5"/>
+                        <stop offset="0.55" stop-color="#ffc678" stop-opacity="0.12"/>
+                        <stop offset="1" stop-color="#ffc678" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="gPurple" x1="0.08" y1="0" x2="0.4" y2="1">
+                        <stop offset="0" stop-color="#b678e6"/>
+                        <stop offset="0.48" stop-color="#8148b8"/>
+                        <stop offset="1" stop-color="#4d2179"/>
+                    </linearGradient>
+                    <radialGradient id="rPurpleGlow" cx="0.4" cy="0.14" r="1">
+                        <stop offset="0" stop-color="#ecd2ff" stop-opacity="0.42"/>
+                        <stop offset="0.6" stop-color="#d9aeff" stop-opacity="0.1"/>
+                        <stop offset="1" stop-color="#d9aeff" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="gKeycap" x1="0.1" y1="0" x2="0.3" y2="1">
+                        <stop offset="0" stop-color="#c795ef"/>
+                        <stop offset="0.5" stop-color="#9257ce"/>
+                        <stop offset="1" stop-color="#5f2c95"/>
+                    </linearGradient>
+                    <linearGradient id="gTeal" x1="0.05" y1="0" x2="0.25" y2="1">
+                        <stop offset="0" stop-color="#57cdcb"/>
+                        <stop offset="0.5" stop-color="#1a939a"/>
+                        <stop offset="1" stop-color="#0a5a63"/>
+                    </linearGradient>
+                    <radialGradient id="rTealGlow" cx="0.4" cy="0.1" r="1.1">
+                        <stop offset="0" stop-color="#c8f8f5" stop-opacity="0.4"/>
+                        <stop offset="0.55" stop-color="#9beee9" stop-opacity="0.1"/>
+                        <stop offset="1" stop-color="#9beee9" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="gSlot" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#ffffff"/>
+                        <stop offset="0.4" stop-color="#d4dbde"/>
+                        <stop offset="0.62" stop-color="#9aa3a8"/>
+                        <stop offset="1" stop-color="#e7ecee"/>
+                    </linearGradient>
+
+                    <filter id="b2"><feGaussianBlur stdDeviation="2"/></filter>
+                    <filter id="b4"><feGaussianBlur stdDeviation="4"/></filter>
+                    <filter id="b7"><feGaussianBlur stdDeviation="7"/></filter>
+                    <filter id="b12"><feGaussianBlur stdDeviation="12"/></filter>
+                    <filter id="b20"><feGaussianBlur stdDeviation="20"/></filter>
+                    <filter id="brushNoise" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.008 0.6" numOctaves="2" result="n"/>
+                        <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.3 0.3 0.3 0 0"/>
+                        <feComposite operator="in" in2="SourceGraphic"/>
+                    </filter>
+                    <filter id="grain" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/>
+                        <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.25 0.25 0.25 0 0"/>
+                        <feComposite operator="in" in2="SourceGraphic"/>
+                    </filter>
+
+                    <!-- 机身：大圆角方体（与面板同族圆角） -->
+                    <rect id="body" x="8" y="8" width="584" height="654" rx="64"/>
+                    <clipPath id="clipBody"><use href="#body"/></clipPath>
+                    <clipPath id="clipOrange"><rect x="44" y="44" width="356" height="392" rx="30"/></clipPath>
+                    <clipPath id="clipPurple"><rect x="418" y="44" width="138" height="392" rx="28"/></clipPath>
+                    <clipPath id="clipTeal"><rect x="44" y="462" width="512" height="164" rx="30"/></clipPath>
+                </defs>
+
+                <!-- ================= 铬机身 ================= -->
+                <use href="#body" fill="url(#gChrome)"/>
+                <g clip-path="url(#clipBody)">
+                    <use href="#body" fill="url(#gChromeV)"/>
+                    <use href="#body" fill="url(#rTopSheen)"/>
+                    <rect x="0" y="0" width="600" height="670" filter="url(#brushNoise)" fill="#ffffff" opacity="0.09"/>
+
+                    <!-- 转角受光（塑造切角感，不改几何） -->
+                    <polygon points="12,86 86,12 116,40 40,116" fill="#ffffff" opacity="0.8" filter="url(#b12)"/>
+                    <polygon points="514,12 588,86 560,116 486,40" fill="#eef4f5" opacity="0.35" filter="url(#b12)"/>
+                    <polygon points="12,584 86,658 116,630 40,556" fill="#5a636b" opacity="0.28" filter="url(#b12)"/>
+                    <polygon points="514,658 588,584 560,556 486,630" fill="#37414a" opacity="0.45" filter="url(#b12)"/>
+
+                    <!-- 边缘光带 -->
+                    <rect x="70" y="5" width="460" height="11" rx="5.5" fill="#ffffff" opacity="0.95" filter="url(#b4)"/>
+                    <rect x="5" y="90" width="9" height="490" rx="4.5" fill="#ffffff" opacity="0.6" filter="url(#b4)"/>
+                    <rect x="586" y="90" width="9" height="490" rx="4.5" fill="#454f57" opacity="0.55" filter="url(#b4)"/>
+                    <rect x="60" y="650" width="480" height="14" rx="7" fill="#2a343b" opacity="0.6" filter="url(#b7)"/>
+                    <rect x="110" y="658" width="380" height="5" rx="2.5" fill="#e2eaec" opacity="0.55" filter="url(#b2)"/>
+
+                    <!-- 面板凹槽环境光遮蔽 -->
+                    <rect x="38" y="38" width="368" height="404" rx="34" fill="#28313a" opacity="0.42" filter="url(#b12)"/>
+                    <rect x="412" y="38" width="150" height="404" rx="32" fill="#28313a" opacity="0.42" filter="url(#b12)"/>
+                    <rect x="38" y="456" width="524" height="176" rx="34" fill="#28313a" opacity="0.44" filter="url(#b12)"/>
+                </g>
+
+                <!-- ================= 橙色亚克力屏 ================= -->
+                <g>
+                    <rect x="44" y="44" width="356" height="392" rx="30" fill="url(#gOrange)"/>
+                    <rect x="44" y="44" width="356" height="392" rx="30" fill="url(#rOrangeGlow)"/>
+                    <g clip-path="url(#clipOrange)">
+                        <rect x="34" y="32" width="376" height="416" rx="38" fill="none" stroke="#381901" stroke-opacity="0.55" stroke-width="26" filter="url(#b20)"/>
+                        <rect x="58" y="48" width="328" height="10" rx="5" fill="#ffe3b0" opacity="0.55" filter="url(#b4)"/>
+                        <polygon points="66,44 196,44 112,436 56,436" fill="#ffffff" opacity="0.08" filter="url(#b7)"/>
+                        <polygon points="224,44 258,44 192,436 170,436" fill="#ffffff" opacity="0.05" filter="url(#b7)"/>
+                        <rect x="72" y="72" width="300" height="336" rx="16" fill="none" stroke="#2b1301" stroke-opacity="0.5" stroke-width="8" filter="url(#b7)" transform="translate(4,6)"/>
+                        <rect x="72" y="72" width="300" height="336" rx="16" fill="none" stroke="#ffcf8e" stroke-opacity="0.4" stroke-width="4" filter="url(#b4)" transform="translate(-2,-3)"/>
+                        <g stroke="#ffe9c8" stroke-width="1.1">
+                            <line x1="95" y1="120" x2="205" y2="96" stroke-opacity="0.13"/>
+                            <line x1="150" y1="210" x2="330" y2="168" stroke-opacity="0.08"/>
+                            <line x1="80" y1="300" x2="180" y2="286" stroke-opacity="0.1"/>
+                            <line x1="230" y1="330" x2="370" y2="300" stroke-opacity="0.07"/>
+                            <line x1="120" y1="392" x2="260" y2="372" stroke-opacity="0.09"/>
+                            <line x1="270" y1="120" x2="380" y2="102" stroke-opacity="0.11"/>
+                            <line x1="180" y1="60" x2="240" y2="52" stroke-opacity="0.09"/>
+                        </g>
+                        <rect x="44" y="316" width="356" height="120" fill="#331700" opacity="0.3" filter="url(#b20)"/>
+                        <rect x="44" y="44" width="356" height="392" filter="url(#grain)" fill="#000000" opacity="0.05"/>
+                    </g>
+                </g>
+                <rect x="68" y="439" width="308" height="5" rx="2.5" fill="#ffffff" opacity="0.5" filter="url(#b2)"/>
+
+                <!-- ================= 紫色控制条 + PRINT 键帽 ================= -->
+                <g>
+                    <rect x="418" y="44" width="138" height="392" rx="28" fill="url(#gPurple)"/>
+                    <rect x="418" y="44" width="138" height="392" rx="28" fill="url(#rPurpleGlow)"/>
+                    <g clip-path="url(#clipPurple)">
+                        <rect x="408" y="32" width="158" height="416" rx="36" fill="none" stroke="#1f0838" stroke-opacity="0.55" stroke-width="24" filter="url(#b20)"/>
+                        <rect x="430" y="48" width="114" height="9" rx="4.5" fill="#f0dcff" opacity="0.5" filter="url(#b4)"/>
+                        <polygon points="430,44 476,44 448,436 422,436" fill="#ffffff" opacity="0.09" filter="url(#b7)"/>
+                        <!-- 上半段内嵌台阶 -->
+                        <rect x="434" y="66" width="106" height="180" rx="16" fill="none" stroke="#1c0733" stroke-opacity="0.42" stroke-width="7" filter="url(#b7)" transform="translate(3,5)"/>
+                        <rect x="434" y="66" width="106" height="180" rx="16" fill="none" stroke="#e2c2ff" stroke-opacity="0.32" stroke-width="3.5" filter="url(#b4)" transform="translate(-2,-2)"/>
+                        <g stroke="#f0dcff" stroke-width="1">
+                            <line x1="440" y1="140" x2="530" y2="122" stroke-opacity="0.11"/>
+                            <line x1="432" y1="200" x2="522" y2="184" stroke-opacity="0.08"/>
+                        </g>
+                        <rect x="418" y="352" width="138" height="84" fill="#1f0838" opacity="0.26" filter="url(#b20)"/>
+                        <rect x="418" y="44" width="138" height="392" filter="url(#grain)" fill="#000000" opacity="0.05"/>
+                    </g>
+                    <!-- PRINT 键帽（凸起体块 = 按钮本体） -->
+                    <g id="keycap">
+                        <rect x="436" y="288" width="104" height="128" rx="20" fill="#1f0838" opacity="0.5" filter="url(#b7)" transform="translate(3,9)"/>
+                        <rect x="434" y="280" width="106" height="130" rx="20" fill="url(#gKeycap)"/>
+                        <rect x="434" y="280" width="106" height="130" rx="20" fill="url(#rPurpleGlow)"/>
+                        <rect x="444" y="285" width="86" height="8" rx="4" fill="#f6e9ff" opacity="0.65" filter="url(#b2)"/>
+                        <rect x="440" y="384" width="94" height="18" rx="9" fill="#2a0d4a" opacity="0.4" filter="url(#b4)"/>
+                        <text x="487" y="356" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="16" font-weight="800" letter-spacing="4" fill="#2e1152" opacity="0.6">PRINT</text>
+                        <text x="487" y="354.6" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="16" font-weight="800" letter-spacing="4" fill="#f3e6ff" opacity="0.85">PRINT</text>
+                    </g>
+                </g>
+                <rect x="436" y="439" width="102" height="5" rx="2.5" fill="#ffffff" opacity="0.45" filter="url(#b2)"/>
+
+                <!-- ================= 青色出纸面板 ================= -->
+                <g>
+                    <rect x="44" y="462" width="512" height="164" rx="30" fill="url(#gTeal)"/>
+                    <rect x="44" y="462" width="512" height="164" rx="30" fill="url(#rTealGlow)"/>
+                    <g clip-path="url(#clipTeal)">
+                        <rect x="34" y="450" width="532" height="188" rx="38" fill="none" stroke="#032a30" stroke-opacity="0.55" stroke-width="24" filter="url(#b20)"/>
+                        <rect x="62" y="466" width="476" height="9" rx="4.5" fill="#d8fbfa" opacity="0.5" filter="url(#b4)"/>
+                        <rect x="64" y="482" width="472" height="128" rx="16" fill="none" stroke="#02272c" stroke-opacity="0.42" stroke-width="7" filter="url(#b7)" transform="translate(3,5)"/>
+                        <rect x="64" y="482" width="472" height="128" rx="16" fill="none" stroke="#aef0f2" stroke-opacity="0.32" stroke-width="3.5" filter="url(#b4)" transform="translate(-2,-2)"/>
+                        <g stroke="#d6fbff" stroke-width="1">
+                            <line x1="120" y1="596" x2="260" y2="580" stroke-opacity="0.09"/>
+                            <line x1="330" y1="498" x2="450" y2="486" stroke-opacity="0.1"/>
+                        </g>
+                        <rect x="44" y="576" width="512" height="50" fill="#03343a" opacity="0.3" filter="url(#b12)"/>
+                        <rect x="44" y="462" width="512" height="164" filter="url(#grain)" fill="#000000" opacity="0.05"/>
+                    </g>
+
+                    <rect x="86" y="490" width="428" height="58" rx="29" fill="#03282e" opacity="0.5" filter="url(#b7)"/>
+                    <rect x="94" y="498" width="412" height="42" rx="21" fill="url(#gSlot)"/>
+                    <rect x="110" y="501" width="380" height="7" rx="3.5" fill="#ffffff" opacity="0.85" filter="url(#b2)"/>
+                    <rect x="116" y="513" width="368" height="13" rx="6.5" fill="#10171a"/>
+                    <rect x="116" y="513" width="368" height="5" rx="2.5" fill="#000000" opacity="0.8"/>
+                    <rect x="120" y="523.5" width="360" height="1.8" rx="0.9" fill="#ffffff" opacity="0.45"/>
+                </g>
+                <rect x="88" y="629" width="424" height="5" rx="2.5" fill="#ffffff" opacity="0.4" filter="url(#b2)"/>
+
+                <!-- 右缘镜头光斑 -->
+                <g>
+                    <circle cx="589" cy="126" r="14" fill="#ffffff" opacity="0.35" filter="url(#b12)"/>
+                    <circle cx="589" cy="126" r="4.5" fill="#ffffff" filter="url(#b2)"/>
+                    <rect x="558" y="124" width="62" height="4" rx="2" fill="#ffffff" opacity="0.8" filter="url(#b4)"/>
+                    <rect x="587" y="98" width="4" height="58" rx="2" fill="#ffffff" opacity="0.65" filter="url(#b4)"/>
+                </g>
+            </svg>
+
+            <div class="orange-hit" id="orangeHit">
+                <div class="lcd-status"><span id="lcdMode">BEAN SELECT</span><span id="lcdCount">1/6</span></div>
+                <div id="lcdList"></div>
+            </div>
+            <button class="purple-hit" id="printBtn" aria-label="PRINT"></button>
+            <div class="led" id="led"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const BEANS = [
+        {
+            name: 'YIRGACHEFFE 耶加雪菲', origin: 'ETHIOPIA · WASHED',
+            roast: 'LIGHT', stamp: '#b07d3c',
+            powder: '15.0 g', liquid: '225.0 g', ratio: '1 : 15.0', time: "2'30\"", grind: '6.0',
+            roastDate: '2026-06-24', day: 'DAY 12', no: 'NO.0001',
+            brews: [['07/04', '15g → 225g', "2'25\""], ['07/05', '15g → 230g', "2'30\""]]
+        },
+        {
+            name: 'COLOMBIA 花月夜', origin: 'HUILA · DOUBLE ANAEROBIC',
+            roast: 'MEDIUM', stamp: '#8a5a2b',
+            powder: '18.0 g', liquid: '36.0 g', ratio: '1 : 2.0', time: '28"', grind: '2.0',
+            roastDate: '2026-06-16', day: 'DAY 20', no: 'NO.0002',
+            brews: [['07/05', '18g → 36g', '28"']]
+        },
+        {
+            name: 'MANDHELING 曼特宁', origin: 'SUMATRA · WET HULLED',
+            roast: 'DARK', stamp: '#4c3320',
+            powder: '20.0 g', liquid: '40.0 g', ratio: '1 : 2.0', time: '30"', grind: '1.8',
+            roastDate: '—', day: '', no: 'NO.0003',
+            brews: []
+        },
+        {
+            name: 'GEISHA 瑰夏', origin: 'PANAMA · NATURAL',
+            roast: 'LIGHT', stamp: '#b07d3c',
+            powder: '14.0 g', liquid: '210.0 g', ratio: '1 : 15.0', time: "2'10\"", grind: '6.5',
+            roastDate: '2026-06-30', day: 'DAY 6', no: 'NO.0004',
+            brews: [['07/06', '14g → 210g', "2'10\""]]
+        },
+        {
+            name: 'SAKURA 樱花蜜处理', origin: 'COSTA RICA · HONEY',
+            roast: 'MEDIUM', stamp: '#8a5a2b',
+            powder: '16.0 g', liquid: '240.0 g', ratio: '1 : 15.0', time: "2'40\"", grind: '5.8',
+            roastDate: '2026-06-10', day: 'DAY 26', no: 'NO.0005',
+            brews: [['06/28', '16g → 240g', "2'35\""], ['07/02', '16g → 245g', "2'40\""]]
+        },
+        {
+            name: 'HOUSE BLEND 拼配', origin: 'BRAZIL + ETHIOPIA',
+            roast: 'DARK', stamp: '#4c3320',
+            powder: '19.0 g', liquid: '38.0 g', ratio: '1 : 2.0', time: '27"', grind: '1.9',
+            roastDate: '2026-07-01', day: 'DAY 5', no: 'NO.0006',
+            brews: [['07/03', '19g → 38g', '27"']]
+        }
+    ];
+    const TILTS = [-5, 3.5, -2.5, 6, -4, 2, -6, 4.5];
+    const REF_RATIO = 670 / 600;
+    const SLOT_Y = 519 / 670;
+    const ROAST_META = {
+        light:  { label: 'LIGHT',  stamp: '#b07d3c' },
+        medium: { label: 'MEDIUM', stamp: '#8a5a2b' },
+        dark:   { label: 'DARK',   stamp: '#4c3320' }
+    };
+
+    const phone = document.getElementById('phone');
+    const island = document.getElementById('island');
+    const canvas = document.getElementById('canvas');
+    const printerBox = document.getElementById('printerBox');
+    const btn = document.getElementById('printBtn');
+    const led = document.getElementById('led');
+    const idleCount = document.getElementById('idleCount');
+    const lcdList = document.getElementById('lcdList');
+    const lcdCount = document.getElementById('lcdCount');
+    const lcdMode = document.getElementById('lcdMode');
+
+    let zTop = 10;
+    let draft = null;
+    const notes = [];
+    const LABEL2KEY = { LIGHT: 'light', MEDIUM: 'medium', DARK: 'dark' };
+
+    function syncPrinterSize() {
+        const w = Math.min(322, window.innerWidth - 40);
+        document.documentElement.style.setProperty('--printer-w', w + 'px');
+        document.documentElement.style.setProperty('--printer-h', Math.round(w * REF_RATIO) + 'px');
+    }
+    syncPrinterSize();
+    window.addEventListener('resize', syncPrinterSize);
+
+    function updateIdle() { idleCount.innerText = `${BEANS.length} BEANS`; }
+
+    /* 默认屏 = 新豆子填单：字段与卡片一致（含研磨度） */
+    function renderForm() {
+        draft = { name: '', origin: '', roast: 'medium', powder: '18', liquid: '36', time: '', grind: '' };
+        lcdMode.innerText = 'NEW COFFEE';
+        lcdCount.innerText = '填好按 PRINT';
+        lcdList.innerHTML = `
+            <div class="f-row"><span class="f-lbl">名称</span><input class="f-input" id="fName" placeholder="豆子的名字…" maxlength="20" autocomplete="off"></div>
+            <div class="f-row"><span class="f-lbl">产地</span><input class="f-input" id="fOrigin" placeholder="ETHIOPIA · WASHED" maxlength="26" autocomplete="off"></div>
+            <div class="f-row"><span class="f-lbl">烘焙</span>
+                <div class="f-dots">
+                    <span class="f-dot" data-roast="light" style="background:#e8c39e"></span>
+                    <span class="f-dot sel" data-roast="medium" style="background:#c68b59"></span>
+                    <span class="f-dot" data-roast="dark" style="background:#6b4226"></span>
+                </div>
+            </div>
+            <div class="f-row"><span class="f-lbl">粉量</span><input class="f-input num" id="fPowder" type="number" value="18" min="1"><span class="f-unit">g</span></div>
+            <div class="f-row"><span class="f-lbl">液重</span><input class="f-input num" id="fLiquid" type="number" value="36" min="1"><span class="f-unit">g</span></div>
+            <div class="f-row"><span class="f-lbl">时间</span><input class="f-input num" id="fTime" placeholder='25"' maxlength="8"></div>
+            <div class="f-row"><span class="f-lbl">研磨</span><input class="f-input num" id="fGrind" placeholder="2.0" maxlength="8"></div>`;
+    }
+
+    island.addEventListener('click', (e) => {
+        if (e.target.closest('.orange-hit, .purple-hit')) return;
+        const opening = !island.classList.contains('open');
+        island.classList.toggle('open', opening);
+        phone.classList.toggle('printer-open', opening);
+        if (opening) renderForm();
+    });
+
+    lcdList.addEventListener('click', (e) => {
+        const dot = e.target.closest('.f-dot');
+        if (dot) {
+            draft.roast = dot.dataset.roast;
+            lcdList.querySelectorAll('.f-dot').forEach(d => d.classList.toggle('sel', d === dot));
+        }
+    });
+    lcdList.addEventListener('input', (e) => {
+        if (!draft) return;
+        const map = { fName: 'name', fOrigin: 'origin', fPowder: 'powder', fLiquid: 'liquid', fTime: 'time', fGrind: 'grind' };
+        const key = map[e.target.id];
+        if (key) draft[key] = e.target.value;
+    });
+
+    function receiptHTML(b) {
+        const brewRows = b.brews.length
+            ? b.brews.map(x => `<div class="r-row r-small"><span>${x[0]}</span><span>${x[1]}</span><span>${x[2]}</span></div>`).join('')
+            : '<div class="r-center r-small">— 还没有冲煮记录 —</div>';
+        return `
+            <div class="roast-band" style="--stamp:${b.stamp}"></div>
+            <div class="r-center">
+                <div class="r-title">BEANDANCE</div>
+                <div class="r-sub">COFFEE JOURNAL — by CAIMAN</div>
+            </div>
+            <hr class="r-rule">
+            <div class="r-bean">${b.name}</div>
+            <div class="r-origin">${b.origin}</div>
+            <div class="stamp" style="--stamp:${b.stamp}">${b.roast}</div>
+            <hr class="r-dots">
+            <div class="r-row"><span class="lbl">粉量 POWDER</span><span class="val">${b.powder}</span></div>
+            <div class="r-row"><span class="lbl">液重 YIELD</span><span class="val">${b.liquid}</span></div>
+            <div class="r-row"><span class="lbl">比例 RATIO</span><span class="val">${b.ratio}</span></div>
+            <div class="r-row"><span class="lbl">时间 TIME</span><span class="val">${b.time}</span></div>
+            <div class="r-row"><span class="lbl">研磨 GRIND</span><span class="val">${b.grind}</span></div>
+            <hr class="r-dots">
+            <div class="r-row r-small"><span>ROAST DATE ${b.roastDate}</span><span>${b.day}</span></div>
+            <hr class="r-dots">
+            <div class="r-small" style="letter-spacing:2px">BREW LOG</div>
+            ${brewRows}
+            <div class="r-stars">* * * * * * * * *</div>
+            <div class="barcode"></div>
+            <div class="r-foot"><span>${b.no}</span><span>THANK YOU ☕</span></div>
+            <div class="receipt-tail"></div>`;
+    }
+
+    function printerBuzz(durationMs) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            osc.type = 'square'; osc.frequency.value = 110;
+            lfo.type = 'square'; lfo.frequency.value = 26;
+            lfoGain.gain.value = 0.012;
+            gain.gain.value = 0.012;
+            lfo.connect(lfoGain); lfoGain.connect(gain.gain);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); lfo.start();
+            setTimeout(() => { osc.stop(); lfo.stop(); ctx.close(); }, durationMs);
+        } catch (e) {}
+    }
+
+    function makeNote(bean, i, x, y, animate = false) {
+        const note = document.createElement('div');
+        note.className = 'note' + (animate ? ' clip' : '');
+        note.style.setProperty('--tilt', TILTS[i % TILTS.length] + 'deg');
+        note.style.left = x + 'px';
+        note.style.top = y + 'px';
+        note.style.zIndex = animate ? 200 : ++zTop;
+        const inner = document.createElement('div');
+        inner.className = 'note-scale';
+        const r = document.createElement('div');
+        r.className = 'receipt' + (animate ? ' printing' : '');
+        r.innerHTML = receiptHTML(bean);
+        inner.appendChild(r);
+        note.appendChild(inner);
+        canvas.appendChild(note);
+        notes.push(note);
+        if (animate) {
+            r.addEventListener('animationend', () => {
+                r.classList.remove('printing');
+                note.classList.remove('clip');
+                note.style.zIndex = ++zTop;
+            }, { once: true });
+        }
+        return note;
+    }
+
+    /* 拖拽 vs 轻点：位移小于阈值算点按 → 打开卡片编辑 */
+    let drag = null;
+    canvas.addEventListener('pointerdown', (e) => {
+        const note = e.target.closest('.note');
+        if (!note) return;
+        drag = {
+            note,
+            dx: e.clientX - note.offsetLeft, dy: e.clientY - note.offsetTop,
+            sx: e.clientX, sy: e.clientY, moved: false
+        };
+        note.style.zIndex = ++zTop;
+        try { note.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    canvas.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        if (!drag.moved) {
+            if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 8) return;
+            drag.moved = true;
+            drag.note.classList.add('dragging');
+        }
+        e.preventDefault();
+        const pw = phone.clientWidth, phh = phone.clientHeight;
+        const x = Math.min(pw - 40, Math.max(40 - drag.note.offsetWidth, e.clientX - drag.dx));
+        const y = Math.min(phh - 60, Math.max(56, e.clientY - drag.dy));
+        drag.note.style.left = x + 'px';
+        drag.note.style.top = y + 'px';
+    });
+    const endDrag = (e) => {
+        if (!drag) return;
+        const wasTap = !drag.moved;
+        const note = drag.note;
+        note.classList.remove('dragging');
+        drag = null;
+        if (wasTap && e.type === 'pointerup') openEditor(notes.indexOf(note));
+    };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+
+    /* ---------- 卡片编辑：点便签放大修改，字段与卡片一致 ---------- */
+    function openEditor(i) {
+        const bean = BEANS[i];
+        if (!bean) return;
+        const roastKey = LABEL2KEY[bean.roast] || 'medium';
+        const numOnly = (s) => String(s).replace(/[^\d.]/g, '');
+        const backdrop = document.createElement('div');
+        backdrop.className = 'edit-backdrop';
+        backdrop.innerHTML = `
+            <div class="editor receipt">
+                <div class="roast-band" style="--stamp:${bean.stamp}"></div>
+                <div class="r-center">
+                    <div class="r-title">BEANDANCE</div>
+                    <div class="r-sub">EDIT — 修改豆卡</div>
+                </div>
+                <hr class="r-rule">
+                <input class="e-title" id="eName" value="${bean.name.replace(/"/g, '&quot;')}" maxlength="20">
+                <input class="e-origin" id="eOrigin" value="${bean.origin.replace(/"/g, '&quot;')}" maxlength="26">
+                <hr class="r-dots">
+                <div class="e-row"><span class="lbl">粉量 POWDER</span><span><input id="ePowder" type="number" value="${numOnly(bean.powder)}"> g</span></div>
+                <div class="e-row"><span class="lbl">液重 YIELD</span><span><input id="eLiquid" type="number" value="${numOnly(bean.liquid)}"> g</span></div>
+                <div class="e-row"><span class="lbl">时间 TIME</span><input id="eTime" value="${bean.time === '—' ? '' : bean.time.replace(/"/g, '&quot;')}" placeholder='25"' maxlength="8"></div>
+                <div class="e-row"><span class="lbl">研磨 GRIND</span><input id="eGrind" value="${bean.grind === '—' ? '' : bean.grind}" placeholder="2.0" maxlength="8"></div>
+                <hr class="r-dots">
+                <div class="e-row"><span class="lbl">烘焙 ROAST</span>
+                    <div class="e-dots">
+                        <span class="e-dot ${roastKey === 'light' ? 'sel' : ''}" data-roast="light" style="background:#e8c39e"></span>
+                        <span class="e-dot ${roastKey === 'medium' ? 'sel' : ''}" data-roast="medium" style="background:#c68b59"></span>
+                        <span class="e-dot ${roastKey === 'dark' ? 'sel' : ''}" data-roast="dark" style="background:#6b4226"></span>
+                    </div>
+                </div>
+                <div class="e-done">✓ 完 成</div>
+                <div class="receipt-tail"></div>
+            </div>`;
+        phone.appendChild(backdrop);
+        let editRoast = roastKey;
+
+        backdrop.addEventListener('click', (e) => {
+            const dot = e.target.closest('.e-dot');
+            if (dot) {
+                editRoast = dot.dataset.roast;
+                backdrop.querySelectorAll('.e-dot').forEach(d => d.classList.toggle('sel', d === dot));
+                return;
+            }
+            if (e.target.closest('.e-done') || e.target === backdrop) {
+                saveEditor();
+            }
+        });
+
+        function saveEditor() {
+            const g = (id) => backdrop.querySelector('#' + id).value.trim();
+            const p = parseFloat(g('ePowder'));
+            const l = parseFloat(g('eLiquid'));
+            const rm = ROAST_META[editRoast];
+            bean.name = g('eName') || bean.name;
+            bean.origin = g('eOrigin') || 'ORIGIN · PROCESS';
+            bean.roast = rm.label; bean.stamp = rm.stamp;
+            if (p > 0) bean.powder = p.toFixed(1) + ' g';
+            if (l > 0) bean.liquid = l.toFixed(1) + ' g';
+            if (p > 0 && l > 0) bean.ratio = '1 : ' + (l / p).toFixed(1);
+            bean.time = g('eTime') || '—';
+            bean.grind = g('eGrind') || '—';
+            const note = notes[i];
+            note.querySelector('.note-scale').innerHTML = `<div class="receipt">${receiptHTML(bean)}</div>`;
+            note.classList.remove('pop');
+            requestAnimationFrame(() => note.classList.add('pop'));
+            backdrop.remove();
+        }
+    }
+
+    /* PRINT：直接出票 */
+    function onPrint() {
+        const p = parseFloat(draft.powder) || 18;
+        const l = parseFloat(draft.liquid) || 36;
+        const rm = ROAST_META[draft.roast];
+        const bean = {
+            name: (draft.name || '').trim() || 'NEW COFFEE 新豆子',
+            origin: (draft.origin || '').trim() || 'ORIGIN · PROCESS',
+            roast: rm.label, stamp: rm.stamp,
+            powder: p.toFixed(1) + ' g', liquid: l.toFixed(1) + ' g',
+            ratio: '1 : ' + (l / p).toFixed(1),
+            time: (draft.time || '').trim() || '—',
+            grind: (draft.grind || '').trim() || '—',
+            roastDate: '—', day: '',
+            no: 'NO.' + String(BEANS.length + 1).padStart(4, '0'),
+            brews: []
+        };
+        BEANS.push(bean);
+        updateIdle();
+
+        btn.disabled = true;
+        led.classList.add('busy');
+        const noteW = 180;
+        const printerH = island.offsetHeight;
+        const x = Math.round((phone.clientWidth - noteW) / 2);
+        const y = Math.round(12 + printerH * SLOT_Y + 8);
+        makeNote(bean, BEANS.length - 1, x, y, true);
+        printerBuzz(2200);
+        setTimeout(() => {
+            btn.disabled = false;
+            led.classList.remove('busy');
+            renderForm();   // 打完清空，随时录下一颗
+        }, 2300);
+    }
+    btn.addEventListener('click', onPrint);
+    btn.addEventListener('pointerdown', () => printerBox.classList.add('pressed'));
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(t =>
+        btn.addEventListener(t, () => printerBox.classList.remove('pressed')));
+
+    function scatter() {
+        const pw = phone.clientWidth;
+        const noteW = 180;
+        BEANS.forEach((b, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const x = 16 + col * (pw - noteW - 32) + ((i * 37) % 22) - 11;
+            const y = 74 + row * 176 + ((i * 53) % 30);
+            makeNote(b, i, x, y);
+        });
+    }
+
+    scatter();
+    updateIdle();
+    renderForm();
+</script>
